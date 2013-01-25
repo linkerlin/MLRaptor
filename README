@@ -10,9 +10,7 @@ The repository is organized as follows:
 
   doc/  contains human-readable documentation.
 
-  data/ contains one example dataset (6 Mocap sequences of various exercises)
-        See the demos for how to run posterior inference on this data. 
-        Other example datasets (from our NIPS 2012 paper) are available by contacting Mike via email.
+  data/ example dataset, in plain txt format (readable by np.loadtxt)
       
 Look for additional documentation and occasional updates on github:
    https://github.com/michaelchughes/MLRaptor
