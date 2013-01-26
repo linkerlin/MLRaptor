@@ -1,7 +1,10 @@
 '''
  Abstract class for learning algorithms for Gaussian Mixture Models. 
 
-  Simply defines some generic initialization routines.
+  Simply defines some generic initialization routines, based on 
+     assigning cluster responsibilities (either hard or soft) to 
+     cluster centers either learned from data (kmeans)
+                         or selected at random from the data
 
 Author: Mike Hughes (mike@michaelchughes.com)
 '''
@@ -14,28 +17,6 @@ class LearnAlgGMM(object):
 
   def fit( self, X):
     pass
-
-  def init_params( self):
-    pass
-
-  def init_resp( self, X, K):
-    '''Initialize cluster responsibility matrix given data matrix X.
-
-      Returns
-      -------
-        resp : N x K array
-                  resp[n,k] = posterior prob. that item n belongs to cluster k
-      
-      Notes
-        -------
-          Relies on numpy's random number seed, which can be set with
-            np.random.seed( myseed )
-    '''
-    if self.initname == 'kmeans':
-      resp = self.get_kmeans_resp( X, K )
-    elif self.initname == 'random':
-      resp = self.get_random_resp( X, K )
-    return resp
 
   ##################################################### Logging methods
   def print_state( self, iterid, evBound, doFinal=False, status=''):
@@ -57,7 +38,30 @@ class LearnAlgGMM(object):
     pass
 
   ##################################################### Initialization methods
-  def get_kmeans_resp( self, X, K, doHard=True):
+  def init_params( self):
+    pass
+
+  def init_resp( self, X, K, **kwargs):
+    print self.initname
+    '''Initialize cluster responsibility matrix given data matrix X.
+
+      Returns
+      -------
+        resp : N x K array
+                  resp[n,k] = posterior prob. that item n belongs to cluster k
+      
+      Notes
+        -------
+          Relies on numpy's random number seed, which can be set with
+            np.random.seed( myseed )
+    '''
+    if self.initname == 'kmeans':
+      resp = self.get_kmeans_resp( X, K, **kwargs )
+    elif self.initname == 'random':
+      resp = self.get_random_resp( X, K, **kwargs )
+    return resp
+
+  def get_kmeans_resp( self, X, K, doHard=False, seed=42):
     ''' Kmeans initialization of cluster responsibilities.
           We run K-means algorithm on NxD data X
              and return the posterior membership probabilities to K cluster ctrs
@@ -80,13 +84,14 @@ class LearnAlgGMM(object):
             np.random.seed( myseed )
     '''
     N,D = X.shape
+    scipy.random.seed( seed )
     Mu, Z = scipy.cluster.vq.kmeans2( X, K, iter=100, minit='points' )
     Dist = scipy.spatial.distance.cdist( X, Mu )
     return self.get_resp_from_distance_matrix( Dist, doHard )
 
 
 
-  def get_random_resp( self, X, K, doHard=True, ctrIDs=None):
+  def get_random_resp( self, X, K, doHard=False, ctrIDs=None, seed=42):
     ''' Random sampling initialization of cluster responsibilities.
            
         Params
@@ -109,13 +114,36 @@ class LearnAlgGMM(object):
     '''
     N,D = X.shape
     if ctrIDs is None:  
+      np.random.seed( seed )
       ctrIDs = np.random.permutation( N )[:K]
     else:
       assert len(ctrIDs) == K
     Dist   = scipy.spatial.distance.cdist( X, X[ctrIDs] )
     return self.get_resp_from_distance_matrix( Dist, doHard )
 
+
   def get_resp_from_distance_matrix( self, Dist, doHard):
+    ''' Get posterior probabilities given a matrix that measures
+          distance from each data point to current cluster centers
+
+        Params
+        -------
+          Dist : NxK matrix
+                  Dist[n,k] = euclidean distance from X[n] to Mu[k]
+
+          doHard : boolean flag,
+                    true  -> resp[n,:] is a one-hot vector,
+                    false -> resp[n,:] contains actual probabilities
+
+        Returns
+        -------
+          resp : NxK matrix
+                  resp[n,k] \propto  exp( -Dist[ X[n], Mu[k] ]  )
+                  resp[n,:] sums to 1
+
+                  if doHard, resp is a one-hot vector where
+                    resp[n,k] = 1 iff Mu[k] is closest to X[n]
+    '''
     N,K = Dist.shape
     if doHard:
       grid = np.tile( np.arange(K), (N,1) )

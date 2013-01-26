@@ -33,41 +33,58 @@ EPS = np.finfo(float).eps
 
 class VBLearnerGMM( LA.LearnAlgGMM ):
 
-  def __init__( self, qgmm, savefilename='GMMtrace', \
-                      initname='kmeans', Niter=10, printEvery=25, saveEvery=5 ):
+  def __init__( self, qgmm, savefilename='GMMtrace', nIter=100, \
+                    initname='kmeans',  convTHR=1e-10, \
+                    printEvery=5, saveEvery=5, \
+                    **kwargs ):
     self.qgmm = qgmm    
     self.savefilename = savefilename
     self.initname = initname
-    self.Niter = Niter
+    self.convTHR = convTHR
+    self.Niter = nIter
     self.printEvery = printEvery
     self.saveEvery = saveEvery
+    self.SavedIters = dict()
     
-  def init_params( self, X, seed=None): 
-    np.random.seed( seed )
+  def init_params( self, X, **kwargs ): 
     self.qgmm.D = X.shape[1]
-    resp = self.init_resp( X )
+    resp = self.init_resp( X, self.qgmm.K, **kwargs )
     SS = self.qgmm.calc_suff_stats( X, resp)
     self.qgmm.M_step( SS )
       
-  def fit( self, X, seed=None, convTHR=1e-10):
+  def fit( self, X, seed=None):
     self.start_time = time.time()
     prevBound = -np.inf
     status = 'max iters reached.'
     for iterid in xrange(self.Niter):
       if iterid==0:
-        self.init_params( X, seed )
+        self.init_params( X, seed=seed )
       else:
         self.qgmm.M_step( SS )
       resp = self.qgmm.E_step( X )
       SS = self.qgmm.calc_suff_stats( X, resp )
       evBound = self.qgmm.calc_ELBO( resp, SS )
+
+      # Save and display progress
       self.save_state(iterid, evBound)
       self.print_state(iterid, evBound)
-      assert prevBound <= evBound
-      if iterid > 3 and np.abs( evBound-prevBound )/np.abs(evBound) <= convTHR:
+
+      # Check for Convergence!
+      #  throw error if our bound calculation isn't working properly
+      #    but only if the gap is greater than some tolerance
+      
+      isEqual = np.allclose( prevBound, evBound, atol=self.convTHR, rtol=self.convTHR )
+      isValid = prevBound < evBound or isEqual
+      if not isValid:
+        print '    prev = % .15e' % (prevBound)
+        print '     cur = % .15e' % (evBound)
+        raise Exception, 'evidence decreased!'
+      if iterid >= self.saveEvery and isEqual:
         status = 'converged.'
         break
       prevBound = evBound
+
+
     #Finally, save, print and exit 
     self.save_state(iterid, evBound) 
     self.print_state(iterid, evBound, doFinal=True, status=status)
@@ -79,6 +96,10 @@ class VBLearnerGMM( LA.LearnAlgGMM ):
     else:
       mode = 'a' # otherwise just append
       
+    if iterid in self.SavedIters:
+      return      
+    self.SavedIters[iterid] = True
+
     if iterid % (self.saveEvery)==0:
       filename, ext = os.path.splitext( self.savefilename )
       with open( filename+'.alpha', mode) as f:
@@ -92,4 +113,4 @@ class VBLearnerGMM( LA.LearnAlgGMM ):
         f.write( '%d\n' % (iterid) )
         
       with open( filename+'.evidence', mode) as f:
-        f.write( '% .6e\n'% (evBound) )
+        f.write( '% .8e\n'% (evBound) )

@@ -35,12 +35,13 @@ import sys
 import LearnAlgGMM as LA
 from MLUtil import logsumexp
 
-class onlineEMLearnerGMM( LA.LearnAlgGMM ):
+class OnlineEMLearnerGMM( LA.LearnAlgGMM ):
   
 
-  def __init__( self, gmm, min_covar=0.01, savefilename='GMMtrace', \
-                      initname='kmeans', Niter=10, printEvery=25, saveEvery=5, \
-                      kappa=0.5, delay=1.0 ):
+  def __init__( self,  gmm, savefilename='GMMtrace', \
+                    initname='kmeans',  convTHR=1e-10, \
+                    min_covar=0.01, printEvery=5, saveEvery=5, \
+                    kappa=0.5, delay=1.0, **kwargs ):
     self.gmm = gmm
     self.min_covar = min_covar
     self.kappa = float( kappa )
@@ -52,6 +53,13 @@ class onlineEMLearnerGMM( LA.LearnAlgGMM ):
     self.needInitFlag = True
 
   def init_params( self, X, seed): 
+    '''Initialize internal parameters w,mu,Sigma
+          using specified "initname" and given data X
+ 
+       Returns
+       -------
+        nothing. internal model params created (w,Mu,Sigma)
+    '''
     np.random.seed( seed )
     self.gmm.D = X.shape[1]
     resp = self.init_resp( X )
@@ -84,6 +92,12 @@ class onlineEMLearnerGMM( LA.LearnAlgGMM ):
     return evBound
     
   def E_step( self, Xchunk ):
+    '''Expectation step
+
+       Returns
+       -------
+          resp : NxK matrix, resp[n,k] = Pr(Z[n]=k | X[n],mu[k],Sigma[k])
+    '''
     lpr = np.log( self.gmm.w ) + self.gmm.calc_soft_evidence_mat( Xchunk )
     lprPerItem = logsumexp(lpr, axis=1)
     logEvidence = lprPerItem.sum()
@@ -91,9 +105,11 @@ class onlineEMLearnerGMM( LA.LearnAlgGMM ):
     return resp, logEvidence
   
   def M_step( self, Xchunk, resp, rho=1.0 ):
-    '''
-       Updates internal mixture model parameters
-       Returns: nothing
+    '''Maximization step
+
+       Returns
+       -------
+          nothing. internal model params updated (w,Mu,Sigma)
     '''
     Nresp = resp.sum(axis=0)
     wChunk = Nresp / ( Nresp.sum() + EPS )

@@ -56,7 +56,7 @@ class GMM(object):
       s += 'sigma[%d]= %s\n' % ( k, np2flatstr( self.Sigma[k], '% 5.1f' ) )
     return s
   
-  def __init__( self, K=1, covar_type='diag'):
+  def __init__( self, K=1, covar_type='diag', **kwargs):
     self.K = K
     self.covar_type = covar_type
     self.D = None
@@ -127,11 +127,11 @@ class GMM(object):
     N, D = X.shape
     Sigma = self.Sigma
     Mu    = self.mu
-    lpr = np.dot( X**2, (1.0/Sigma).T ) # x^T invS x term
-    lpr -= 2*np.dot( X, (Mu/Sigma).T )  # x^T invS mu term
-    lpr += np.sum( Mu**2/Sigma, axis=1) # mu^T invS mu term
-    lpr += D * np.log(2*np.pi)  # norm constants
-    lpr += np.sum(np.log(Sigma), axis=1)
+    lpr = np.dot( X**2, (1.0/Sigma).T )   \
+      - 2*np.dot( X, (Mu/Sigma).T )       \
+      + np.sum( Mu**2/Sigma, axis=1)      \
+      + D * np.log(2*np.pi)               \
+      + np.sum(np.log(Sigma), axis=1)
     return -0.5*lpr
     
   def generate_data(self, N, D):

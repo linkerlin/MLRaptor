@@ -29,6 +29,7 @@ Pattern Recognition and Machine Learning, by C. Bishop
 import os.path
 import time
 import numpy as np
+
 import LearnAlgGMM as LA
 from MLUtil import logsumexp
 
@@ -39,45 +40,62 @@ def np2flatstr( X, fmt='% .6f' ):
 
 class EMLearnerGMM( LA.LearnAlgGMM ):
 
-  def __init__( self, gmm, min_covar=0.01, savefilename='GMMtrace', \
-                      initname='kmeans', Niter=10, printEvery=25, saveEvery=5 ):
+  def __init__( self, gmm, savefilename='GMMtrace', nIter=100, \
+                    initname='kmeans',  convTHR=1e-10, \
+                    min_covar=0.01, printEvery=5, saveEvery=5,\
+                    **kwargs ):
     self.gmm = gmm
     self.min_covar = min_covar
     self.savefilename = savefilename
     self.initname = initname
-    self.Niter = Niter
+    self.convTHR = convTHR
+    self.Niter = nIter
     self.printEvery = printEvery
     self.saveEvery = saveEvery
+    self.SavedIters = dict()
     
-  def init_params( self, X, seed): 
-    np.random.seed( seed )
+  def init_params( self, X, **kwargs): 
+    '''Initialize internal parameters w,mu,Sigma
+          using specified "initname" and given data X
+ 
+       Returns
+       -------
+        nothing. internal model params created (w,Mu,Sigma)
+    '''
     self.gmm.D = X.shape[1]
-    resp = self.init_resp( X, self.gmm.K )
+    resp = self.init_resp( X, self.gmm.K, **kwargs )
     self.M_step( X, resp )
             
-  def fit( self, X, seed=None, convTHR=1e-4):
+  def fit( self, X, seed=None):
     self.start_time = time.time()
     prevBound = -np.inf
     status = 'max iters reached.'
 
     for iterid in xrange(self.Niter):
       if iterid==0:
-        self.init_params( X, seed )
-        evBound = self.gmm.calc_evidence( X )
-      else:
+        self.init_params( X, seed=seed )
         resp, evBound = self.E_step( X )
+      else:
         self.M_step( X, resp )
-
-      # Check for Convergence!
-      assert prevBound <= evBound
-      if iterid > 3 and np.abs( evBound-prevBound )/np.abs(evBound) <= convTHR:
-        status = 'converged.'
-        break
-      prevBound = evBound
+        resp, evBound = self.E_step( X )
 
       # Save and display progress
       self.save_state(iterid, evBound)
       self.print_state(iterid, evBound)
+
+      # Check for Convergence!
+      #  throw error if our bound calculation isn't working properly
+      #    but only if the gap is greater than some tolerance
+      #isValid = True
+      isValid = prevBound < evBound or np.allclose( prevBound, evBound, rtol=self.convTHR )
+      if not isValid:
+        print '    prev = % .15e' % (prevBound)
+        print '     cur = % .15e' % (evBound)
+        raise Exception, 'evidence decreased!'
+      if iterid >= self.saveEvery and np.abs(evBound-prevBound)/np.abs(evBound) <= self.convTHR:
+        status = 'converged.'
+        break
+      prevBound = evBound
 
     #Finally, save, print and exit 
     self.save_state(iterid, evBound) 
@@ -85,9 +103,12 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
   
   def E_step( self, X):
     lpr = np.log( self.gmm.w ) + self.gmm.calc_soft_evidence_mat( X )
-    lprPerItem = logsumexp(lpr, axis=1)
+    lprPerItem = logsumexp( lpr, axis=1 )
+    resp   = np.exp( lpr-lprPerItem[:,np.newaxis] ) 
+    if not np.allclose( np.sum(resp,axis=1), 1.0 ):
+      np.set_printoptions( linewidth=120, precision=3, suppress=True )      
+      raise Exception, 'Responsibilities do not sum to one!'
     logEvidence = lprPerItem.sum()
-    resp   = np.exp(lpr - lprPerItem[:, np.newaxis])
     return resp, logEvidence
     
   def M_step( self, X, resp):
@@ -98,17 +119,23 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
          for updates to w, mu, and Sigma
     '''
     Nresp = resp.sum(axis=0)
-    w = Nresp / ( Nresp.sum() + EPS )
+
+    w = Nresp / Nresp.sum()
 
     wavg_X = np.dot(resp.T, X)
-    mu = wavg_X / (Nresp[:,np.newaxis] + EPS)
+    mu = wavg_X / Nresp[:,np.newaxis]
 
     wavg_X2 = np.dot(resp.T, X**2)
     wavg_M2 = mu**2 * Nresp[:,np.newaxis] 
     wavg_XM = wavg_X * mu
-    sigma = wavg_X2 -2*wavg_XM + wavg_M2
-    sigma /= (Nresp[:,np.newaxis] + EPS)
-    
+    sigma = (wavg_X2 -2*wavg_XM + wavg_M2 ) \
+              / Nresp[:,np.newaxis]
+
+    mask = np.isnan(w)
+    w[ mask ] = 0    
+    mu[ mask ] = 0
+    sigma[ mask ] = 0
+
     self.gmm.w     = w
     self.gmm.mu    = mu
     self.gmm.Sigma = sigma + self.min_covar
@@ -118,9 +145,16 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
       mode = 'w' # create logfiles from scratch on initialization
     else:
       mode = 'a' # otherwise just append
-      
+
+    if iterid in self.SavedIters:
+      return      
+    self.SavedIters[iterid] = True
+
     if iterid % (self.saveEvery)==0:
       filename, ext = os.path.splitext( self.savefilename )
+      with open( filename+'.iters', mode) as f:        
+        f.write( '%d\n' % (iterid) )
+
       with open( filename+'.w', mode) as f:
         f.write( np2flatstr(self.gmm.w)+'\n')
 
@@ -130,8 +164,5 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
       with open( filename+'.sigma', mode) as f:
         f.write( np2flatstr(self.gmm.Sigma)+'\n' )
         
-      with open( filename+'.iters', mode) as f:
-        f.write( '%d\n' % (iterid) )
-        
       with open( filename+'.evidence', mode) as f:
-        f.write( '% .6e\n'% (evBound) )
+        f.write( '% .8e\n'% (evBound) )

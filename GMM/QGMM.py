@@ -29,7 +29,8 @@
 
 import numpy as np
 from scipy.special import digamma, gammaln
-from sklearn.utils.extmath import logsumexp
+
+from MLUtil import logsumexp
 import GMM
 
 EPS = 1e-13
@@ -39,7 +40,7 @@ LOGTWOPI = np.log( 2.0*np.pi )
 
 class QGMM( object ):
 
-  def __init__(self, K, alpha0, obsPrior):
+  def __init__(self, obsPrior, K=2, alpha0=1.0, **kwargs):
     self.K = K
     self.alpha0 = alpha0
     self.prior = obsPrior
