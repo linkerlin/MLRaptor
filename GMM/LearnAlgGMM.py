@@ -42,7 +42,6 @@ class LearnAlgGMM(object):
     pass
 
   def init_resp( self, X, K, **kwargs):
-    print self.initname
     '''Initialize cluster responsibility matrix given data matrix X.
 
       Returns

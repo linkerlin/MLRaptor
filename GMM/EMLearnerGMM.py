@@ -125,11 +125,10 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
     wavg_X = np.dot(resp.T, X)
     mu = wavg_X / Nresp[:,np.newaxis]
 
-    wavg_X2 = np.dot(resp.T, X**2)
-    wavg_M2 = mu**2 * Nresp[:,np.newaxis] 
-    wavg_XM = wavg_X * mu
-    sigma = (wavg_X2 -2*wavg_XM + wavg_M2 ) \
-              / Nresp[:,np.newaxis]
+    if self.gmm.covar_type == 'full':
+      sigma = self.full_covar_M_step( X, resp, wavg_X, mu, Nresp )
+    else:
+      sigma = self.diag_covar_M_step( X, resp, wavg_X, mu, Nresp )
 
     mask = np.isnan(w)
     w[ mask ] = 0    
@@ -139,6 +138,23 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
     self.gmm.w     = w
     self.gmm.mu    = mu
     self.gmm.Sigma = sigma + self.min_covar
+        
+  def diag_covar_M_step( self, X, resp,  wavg_X, mu, Nresp ):
+    wavg_X2 = np.dot(resp.T, X**2)
+    wavg_M2 = mu**2 * Nresp[:,np.newaxis] 
+    wavg_XM = wavg_X * mu
+    sigma = (wavg_X2 -2*wavg_XM + wavg_M2 )
+    return sigma / Nresp[:,np.newaxis]
+    
+  def full_covar_M_step( self, X, resp, wavg_X, mu, Nresp ):
+    '''Update to full covariance matrix.  See Bishop PRML eq. 9.25
+    '''
+    N,D = X.shape
+    Sigma = np.zeros( (self.gmm.K, D,D) ) 
+    for k in range( self.gmm.K ):
+      dX = X - mu[k]
+      Sigma[k] = np.dot( dX.T, resp[:,k][:,np.newaxis]*dX ) / Nresp[k]
+    return Sigma    
         
   def save_state( self, iterid, evBound ):
     if iterid==0: 
@@ -166,3 +182,43 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
         
       with open( filename+'.evidence', mode) as f:
         f.write( '% .8e\n'% (evBound) )
+        
+        
+        
+#########################################################  Doc Tests
+def verify_M_step():
+  '''Doctest to verify that full and diag covariance give same M step result
+    >>> import data.EasyToyGMMDataGenerator as Toy
+    >>> import GMM
+    >>> X = 10*np.random.randn( 100, 5) 
+    >>> gdiag = GMM.GMM( K=3, covar_type='diag', D=5 )
+    >>> gdiag.mu = Toy.Mu
+    >>> gdiag.Sigma = Toy.Sigma
+    >>> gdiag.w = Toy.w
+
+    >>> gfull = GMM.GMM( K=3, covar_type='full', D=5 )
+    >>> gfull.mu = Toy.Mu
+    >>> gfull.Sigma = np.zeros( (3,5,5) )
+    >>> gfull.w  = Toy.w
+    >>> for k in range(3): gfull.Sigma[k] = np.diag( Toy.Sigma[k] )
+
+    >>> em1 = EMLearnerGMM( gdiag )
+    >>> resp, ev = em1.E_step( X )
+    >>> em1.M_step( X, resp )
+    
+    >>> em2 = EMLearnerGMM( gfull )
+    >>> resp2, ev = em2.E_step( X )
+    >>> em2.M_step( X, resp2 )
+    
+    >>> print np.allclose( resp, resp2 )
+    True
+    >>> Sigma2 = np.vstack( [np.diag( em2.gmm.Sigma[k] )  for k in range(3)] )
+    >>> print np.allclose( Sigma2, em1.gmm.Sigma )
+    True
+  '''
+  pass
+  
+  
+if __name__ == "__main__":
+  import doctest
+  doctest.testmod()

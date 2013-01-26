@@ -8,7 +8,7 @@ Author:  Mike Hughes (michaelchughes.com)
 
 Usage
 -------
-mygmm = GMM( K=1, covar_type='diag' )
+mygmm = GMM( K=3, covar_type='diag' )
 
 Params
 -------
@@ -19,7 +19,6 @@ Params
             mu[k] = vector of location of k-th cluster
   Sigma : K x variable_size
             Sigma[k] = covariance params for k-th cluster
-          
 
 Inference
 -------
@@ -31,8 +30,9 @@ References
 Pattern Recognition and Machine Learning by C. Bishop
 
 """
-
+import data.EasyToyGMMDataGenerator as Toy
 import numpy as np
+import scipy.linalg
 from MLUtil import logsumexp
 
 def np2flatstr( X, fmt='% .3f' ):
@@ -56,10 +56,10 @@ class GMM(object):
       s += 'sigma[%d]= %s\n' % ( k, np2flatstr( self.Sigma[k], '% 5.1f' ) )
     return s
   
-  def __init__( self, K=1, covar_type='diag', **kwargs):
+  def __init__( self, K=1, covar_type='diag', D=None, **kwargs):
     self.K = K
     self.covar_type = covar_type
-    self.D = None
+    self.D = D
     
     self.w  = None
     self.mu = None
@@ -124,6 +124,24 @@ class GMM(object):
          lpr : NxK matrix
                where lpr[n,k] = Pr( X[n,:] | mu[k,:], sigma[k,:] )
     """
+    if self.covar_type == 'full':
+      return self.calc_soft_evidence_mat_full( X )
+    else:
+      return self.calc_soft_evidence_mat_diag( X )
+    
+  def calc_soft_evidence_mat_full( self, X):
+    N,D = X.shape
+    lpr = np.zeros( (X.shape[0], self.K) )
+    logdet = np.zeros( self.K)
+    for k in xrange( self.K ):
+      cholSigma = scipy.linalg.cholesky( self.Sigma[k], lower=True)
+      logdet[k] = 2*np.sum( np.log( np.diag( cholSigma ) ) )
+      lpr[:,k]  = self.calc_dist_mahalanobis_full( X, cholSigma, self.mu[k] )
+    lpr += logdet[np.newaxis,:]
+    lpr += D*np.log(2*np.pi)
+    return -0.5*lpr 
+    
+  def calc_soft_evidence_mat_diag( self, X):
     N, D = X.shape
     Sigma = self.Sigma
     Mu    = self.mu
@@ -144,3 +162,41 @@ class GMM(object):
       X = np.vstack( [X, Xk] )
     return X
 
+  def calc_dist_mahalanobis_full( self, X, cholSigma, mu):
+    '''Calculate Mahalanobis distance to x
+             dist(x) = (x-m)'*W*(x-m)
+       If X is a matrix, we compute a vector of distances to each row of X
+    '''
+    # Method: Efficient solve via cholesky
+    #   let dx  = x-m, a Dx1 vector
+    #   want to solve  dist(x) = dx'* invSigma *dx
+    #   let LL' = Sigma, then  invL' invL = invSigma, so
+    #   dist(x) = dx' invL' invL dx.  If we solve for vector q s.t. Lq = dx
+    #     then  =     q' q  = sum( q^2 ) 
+    dX = (X- mu[np.newaxis,:]).T  #  D x N
+    Q = scipy.linalg.solve_triangular( cholSigma, dX, lower=True)
+    return np.sum( Q**2, axis=0)
+    
+#########################################################  Doc Tests
+def verify_soft_evidence():
+  '''Doctest to verify that full and diag covariance give same prob. result
+    >>> import data.EasyToyGMMDataGenerator as Toy
+    >>> X = 10*np.random.randn( 100, 5) 
+    >>> gdiag = GMM( K=3, covar_type='diag', D=5 )
+    >>> gdiag.mu = Toy.Mu
+    >>> gdiag.Sigma = Toy.Sigma
+    >>> L1 = gdiag.calc_soft_evidence_mat( X )
+    >>> gfull = GMM( K=3, covar_type='full', D=5 )
+    >>> gfull.mu = Toy.Mu
+    >>> gfull.Sigma = np.zeros( (3,5,5) )
+    >>> for k in range(3): gfull.Sigma[k] = np.diag( Toy.Sigma[k] )
+    >>> L2 = gfull.calc_soft_evidence_mat( X )
+    >>> print np.allclose( L1, L2 )
+    True
+  '''
+  pass
+  
+  
+if __name__ == "__main__":
+  import doctest
+  doctest.testmod()
