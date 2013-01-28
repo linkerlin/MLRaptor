@@ -21,7 +21,7 @@ class LearnAlgGMM(object):
   ##################################################### Logging methods
   def print_state( self, iterid, evBound, doFinal=False, status=''):
     doPrint = iterid % self.printEvery==0
-    logmsg  = '  %5d/%d after %6.0f sec. | evidence % .6e' % (iterid, self.Niter, time.time()-self.start_time, evBound)
+    logmsg  = '  %5d/%s after %6.0f sec. | evidence % .6e' % (iterid, str(self.Niter), time.time()-self.start_time, evBound)
     if iterid ==0:
       print 'Initialized via %s.' % (self.initname)
       print logmsg

@@ -35,9 +35,6 @@ from MLUtil import logsumexp
 
 EPS = np.finfo(float).eps
 
-def np2flatstr( X, fmt='% .6f' ):
-  return ' '.join( [fmt % x for x in X.flatten() ] )  
-
 class EMLearnerGMM( LA.LearnAlgGMM ):
 
   def __init__( self, gmm, savefilename='GMMtrace', nIter=100, \
@@ -65,6 +62,7 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
     self.gmm.D = X.shape[1]
     resp = self.init_resp( X, self.gmm.K, **kwargs )
     self.M_step( X, resp )
+            
             
   def fit( self, X, seed=None):
     self.start_time = time.time()
@@ -100,7 +98,8 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
     #Finally, save, print and exit 
     self.save_state(iterid, evBound) 
     self.print_state(iterid, evBound, doFinal=True, status=status)
-  
+
+
   def E_step( self, X):
     lpr = np.log( self.gmm.w ) + self.gmm.calc_soft_evidence_mat( X )
     lprPerItem = logsumexp( lpr, axis=1 )
@@ -183,7 +182,8 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
       with open( filename+'.evidence', mode) as f:
         f.write( '% .8e\n'% (evBound) )
         
-        
+def np2flatstr( X, fmt='% .6f' ):
+  return ' '.join( [fmt % x for x in X.flatten() ] )  
         
 #########################################################  Doc Tests
 def verify_M_step():

@@ -64,6 +64,7 @@ def plot_param_trace( savefilename, dimIDs=[0,4] ):
     pylab.draw()
     time.sleep(.1)
 
+
 def plot_evidence_trace( savefilename ):
   evidence = load_mat_from_file( savefilename, 'evidence' )
   iters    = load_mat_from_file( savefilename, 'iters' )
