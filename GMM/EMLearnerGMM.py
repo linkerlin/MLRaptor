@@ -37,7 +37,7 @@ EPS = np.finfo(float).eps
 
 class EMLearnerGMM( LA.LearnAlgGMM ):
 
-  def __init__( self, gmm, savefilename='GMMtrace', nIter=100, \
+  def __init__( self, gmm, savefilename='results/GMMtrace', nIter=100, \
                     initname='kmeans',  convTHR=1e-10, \
                     printEvery=5, saveEvery=5,\
                     **kwargs ):

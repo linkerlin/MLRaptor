@@ -40,7 +40,7 @@ def np2flatstr( X, fmt='% .6f' ):
   
 class OnlineEMLearnerGMM( LA.LearnAlgGMM ):
   
-  def __init__( self,  gmm, savefilename='GMMtrace', \
+  def __init__( self,  gmm, savefilename='results/GMMtrace', \
                     initname='kmeans',  convTHR=1e-10, \
                     min_covar=0.01, printEvery=5, saveEvery=5, \
                     rhoexp=0.5, rhodelay=1.0, **kwargs ):
