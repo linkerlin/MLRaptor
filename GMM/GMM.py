@@ -56,10 +56,11 @@ class GMM(object):
       s += 'sigma[%d]= %s\n' % ( k, np2flatstr( self.Sigma[k], '% 5.1f' ) )
     return s
   
-  def __init__( self, K=1, covar_type='diag', D=None, **kwargs):
+  def __init__( self, K=1, covar_type='diag', D=None, min_covar=1e-6, **kwargs):
     self.K = K
     self.covar_type = covar_type
     self.D = D
+    self.min_covar = min_covar
     
     self.w  = None
     self.mu = None
@@ -134,7 +135,15 @@ class GMM(object):
     lpr = np.zeros( (X.shape[0], self.K) )
     logdet = np.zeros( self.K)
     for k in xrange( self.K ):
-      cholSigma = scipy.linalg.cholesky( self.Sigma[k], lower=True)
+      try:
+        cholSigma = scipy.linalg.cholesky( self.Sigma[k], lower=True)
+      except scipy.linalg.LinAlgError:
+        cholSigma = scipy.linalg.cholesky( self.Sigma[k]+ self.min_covar*np.eye(self.D), lower=True)
+      except ValueError:
+        print self.Sigma[k][:8, :8]
+        print self.w[k]
+        print self.mu[k]
+        raise ValueError
       logdet[k] = 2*np.sum( np.log( np.diag( cholSigma ) ) )
       lpr[:,k]  = self.calc_dist_mahalanobis_full( X, cholSigma, self.mu[k] )
     lpr += logdet[np.newaxis,:]

@@ -125,14 +125,18 @@ class OnlineEMLearnerGMM( LA.LearnAlgGMM ):
 
     if self.gmm.covar_type == 'full':
       sigma = self.full_covar_M_step( Xchunk, resp, wavg_X, mu, Nresp )
+      sigma += self.gmm.min_covar*np.eye(self.gmm.D) 
     else:
       sigma = self.diag_covar_M_step( Xchunk, resp, wavg_X, mu, Nresp )
+      sigma += self.gmm.min_covar
 
-    mask = np.isnan(w)
-    w[ mask ] = 0    
-    mu[ mask ] = 0
-    sigma[ mask ] = 0
-    return w, mu, sigma+self.min_covar
+    mask = ( Nresp == 0 )
+    if mask.sum() > 0:
+      w[ mask ] = 0    
+      mu[ mask ] = 0
+      sigma[ mask ] = 0
+      
+    return w, mu, sigma
         
   def diag_covar_M_step( self, X, resp,  wavg_X, mu, Nresp ):
     wavg_X2 = np.dot(resp.T, X**2)

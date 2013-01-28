@@ -39,10 +39,9 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
 
   def __init__( self, gmm, savefilename='GMMtrace', nIter=100, \
                     initname='kmeans',  convTHR=1e-10, \
-                    min_covar=0.01, printEvery=5, saveEvery=5,\
+                    printEvery=5, saveEvery=5,\
                     **kwargs ):
     self.gmm = gmm
-    self.min_covar = min_covar
     self.savefilename = savefilename
     self.initname = initname
     self.convTHR = convTHR
@@ -126,17 +125,20 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
 
     if self.gmm.covar_type == 'full':
       sigma = self.full_covar_M_step( X, resp, wavg_X, mu, Nresp )
+      sigma += self.gmm.min_covar * np.eye( self.gmm.D )
     else:
       sigma = self.diag_covar_M_step( X, resp, wavg_X, mu, Nresp )
+      sigma += self.gmm.min_covar
 
-    mask = np.isnan(w)
-    w[ mask ] = 0    
-    mu[ mask ] = 0
-    sigma[ mask ] = 0
+    mask = Nresp == 0
+    if np.sum( mask ) > 0:
+      w[ mask ] = 0    
+      mu[ mask ] = 0
+      sigma[ mask ] = 0
 
     self.gmm.w     = w
     self.gmm.mu    = mu
-    self.gmm.Sigma = sigma + self.min_covar
+    self.gmm.Sigma = sigma
         
   def diag_covar_M_step( self, X, resp,  wavg_X, mu, Nresp ):
     wavg_X2 = np.dot(resp.T, X**2)

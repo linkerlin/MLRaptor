@@ -56,8 +56,8 @@ def main():
 
     Parser.add_argument( '--alpha0', type=float, default=1.0 )
     Parser.add_argument( '--kappa', type=float, default=1.0)
-    Parser.add_argument( '--covar_type', type=str, default='diag' )
-    Parser.add_argument( '--min_covar', type=float, default=1e-8 )
+    Parser.add_argument( '--covar_type', type=str, default='full' )
+    Parser.add_argument( '--min_covar', type=float, default=1e-9 )
 
     # Batch learning args
     Parser.add_argument( '--nIter', type=int, default=100 )
@@ -81,7 +81,7 @@ def main():
     args = Parser.parse_args()
 
     modelParams = dict()
-    for argName in ['K', 'covar_type', 'alpha0']:
+    for argName in ['K', 'covar_type', 'min_covar', 'alpha0']:
       modelParams[ argName ] = args.__getattribute__( argName ) 
 
     dataParams = dict()
@@ -89,7 +89,7 @@ def main():
       dataParams[argName] = args.__getattribute__( argName )
 
     algParams = dict()
-    for argName in ['min_covar', 'initname', 'nIter', 'rhoexp', 'rhodelay', \
+    for argName in ['initname', 'nIter', 'rhoexp', 'rhodelay', \
                     'nIter', 'printEvery', 'saveEvery']:
       algParams[ argName ] = args.__getattribute__( argName ) 
 
