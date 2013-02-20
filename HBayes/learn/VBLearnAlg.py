@@ -1,10 +1,5 @@
 '''
- Abstract class for learning algorithms for Gaussian Mixture Models. 
-
-  Simply defines some generic initialization routines, based on 
-     assigning cluster responsibilities (either hard or soft) to 
-     cluster centers either learned from data (kmeans)
-                         or selected at random from the data
+ Variational bayes learning algorithm
 
 Author: Mike Hughes (mike@michaelchughes.com)
 '''
@@ -13,19 +8,18 @@ import time
 
 import LearnAlg
 
+class VBLearnAlg( LearnAlg.LearnAlg ):
 
-class EMLearnAlg( LearnAlg.LearnAlg ):
-
-  def __init__( self, mixmodel, **kwargs ):
-    super(EMLearnAlg, self).__init__( **kwargs )
-    self.mixmodel = mixmodel
+  def __init__( self, qmixmodel, **kwargs ):
+    super(VBLearnAlg, self).__init__( **kwargs )
+    self.qmixmodel = qmixmodel
 
   def init_params( self, Data, **kwargs):
-    self.mixmodel.set_dims( Data )
+    self.qmixmodel.set_dims( Data )
     LP = dict()
-    LP['resp'] = self.init_resp( Data['X'], self.mixmodel.K, **kwargs )
-    SS = self.mixmodel.get_global_suff_stats( Data, LP )
-    self.mixmodel.update_global_params( SS )
+    LP['resp'] = self.init_resp( Data['X'], self.qmixmodel.K, **kwargs )
+    SS = self.qmixmodel.get_global_suff_stats( Data, LP )
+    self.qmixmodel.update_global_params( SS )
     return SS
 
   def fit( self, Data, seed ):
@@ -36,13 +30,15 @@ class EMLearnAlg( LearnAlg.LearnAlg ):
     for iterid in xrange(self.Niter):
       if iterid==0:
         SS = self.init_params( Data, seed=seed )
-        LP = self.mixmodel.calc_local_params( Data )
+        LP = self.qmixmodel.calc_local_params( Data )
       else:
-        SS = self.mixmodel.get_global_suff_stats( Data, LP )
-        self.mixmodel.update_global_params( SS )  
-        LP = self.mixmodel.calc_local_params( Data )
+        # M-step
+        SS = self.qmixmodel.get_global_suff_stats( Data, LP )
+        self.qmixmodel.update_global_params( SS ) 
+        # E-step 
+        LP = self.qmixmodel.calc_local_params( Data )
 
-      evBound = self.mixmodel.calc_evidence( Data, SS, LP )
+      evBound = self.qmixmodel.calc_evidence( Data, SS, LP )
 
       # Save and display progress
       self.save_state(iterid, evBound)

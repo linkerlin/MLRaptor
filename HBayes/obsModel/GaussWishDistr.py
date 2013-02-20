@@ -66,6 +66,8 @@ class GaussWishDistr(object):
      self.cholinvW = scipy.linalg.cholesky( invW + EPS*np.eye( self.D), lower=True ) 
    self.logdetW     = self.log_W_det()
    
+   self.ElogdetLam = self.E_logdetLam()
+   
   def __str__(self): 
     return '%f %s %f %s' % (self.kappa,  np2flatstr(self.m), self.dF, np2flatstr(self.invW)  )
     
@@ -80,7 +82,7 @@ class GaussWishDistr(object):
     SigmaMAP = self.invW / (self.dF + self.D + 1 )
     return muMAP, SigmaMAP
     
-  def getPosteriorParams( self, N, mean, covar ):
+  def getPosteriorDistr( self, N, mean, covar ):
     kappa = self.kappa+N
     m = ( self.kappa*self.m + N*mean ) / kappa
     invW  = self.invW + N*covar  \
@@ -90,6 +92,30 @@ class GaussWishDistr(object):
   def log_W_det( self ):
     return -2.0*np.sum( np.log( np.diag( self.cholinvW ) )  )  
   
+  def E_log_pdf( self, X):
+    '''
+      E[ log p(X | this Gauss Wish prior )], up to prop. constant
+    '''
+    logp = 0.5*self.ElogdetLam \
+          -0.5*self.dF*self.dist_mahalanobis( X ) \
+          -0.5*self.D/self.kappa
+  
+  def dist_mahalanobis(self, X):
+    '''Calculate Mahalanobis distance to x
+             dist(x) = (x-m)'*W*(x-m)
+       If X is a matrix, we compute a vector of distances to each row vector
+             dist(X)[n] = (x_n-m)'*W*(x_n-m)
+    '''
+    # Method: Efficient solve via cholesky
+    #   let dx  = x-m, a Dx1 vector
+    #   want to solve  dist(x) = dx'*W*dx
+    #   let L'L = W,   dist(x) = dx'L' L dx = q'*q = \sum_d q[d]^2
+    #     where q is a Dx1 vector.            
+    dX = (X-self.m).T  #  D x N
+    Q = scipy.linalg.solve_triangular( self.cholinvW, dX,lower=True)
+    return np.sum( Q**2, axis=0)
+    
+  #####################################################  Useful var. functions
   def entropyWish(self):
     '''Calculate entropy of this Wishart distribution,
          as defined in Bishop PRML B.82
@@ -98,7 +124,7 @@ class GaussWishDistr(object):
            - 0.5*(self.dF-self.D-1)*self.ElogdetLam() \
            + 0.5*self.D*self.dF
   
-  def ElogdetLam( self ):
+  def E_logdetLam( self ):
     '''Calculate expected determinant of the precision matrix drawn from
         this Wishart distribution, as defined in Bishop PRML B.81
        E[ log |Lam| ] = D*log(2) + log|W| + \sum_{d=1}^D digamma( (dF+1-d)/2 )
@@ -119,21 +145,6 @@ class GaussWishDistr(object):
           - gammaln( 0.5*(self.dF+1 - np.arange(1,self.D+1)) ).sum()
     return logB
    
-  def dist_mahalanobis(self, X):
-    '''Calculate Mahalanobis distance to x
-             dist(x) = (x-m)'*W*(x-m)
-       If X is a matrix, we compute a vector of distances to each row vector
-             dist(X)[n] = (x_n-m)'*W*(x_n-m)
-    '''
-    # Method: Efficient solve via cholesky
-    #   let dx  = x-m, a Dx1 vector
-    #   want to solve  dist(x) = dx'*W*dx
-    #   let L'L = W,   dist(x) = dx'L' L dx = q'*q = \sum_d q[d]^2
-    #     where q is a Dx1 vector.            
-    dX = (X-self.m).T  #  D x N
-    Q = scipy.linalg.solve_triangular( self.cholinvW, dX,lower=True)
-    return np.sum( Q**2, axis=0)
-  
   def traceW( self, S):
     '''Calculate trace( S* self.W ) in numerically stable way
     '''

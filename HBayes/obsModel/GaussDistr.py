@@ -20,6 +20,7 @@
 import numpy as np
 import scipy.linalg
 from scipy.special import digamma, gammaln
+
 LOGPI = np.log(np.pi)
 LOGTWO = np.log(2.00)
 LOGTWOPI = np.log( 2.0*np.pi )
@@ -59,7 +60,7 @@ class GaussDistr(object):
     return GaussWishDistr( D=self.D, mu=SS['mean'][k], Sigma=SS['covar'][k] )
     
   def logNormConst( self ):
-    '''Calculate normalization constant of self
+    '''Calculate log normalization constant of self
     '''
     return -0.5*self.D*LOGTWOPI - 0.5*self.logdetSigma
 

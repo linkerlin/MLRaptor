@@ -22,7 +22,7 @@
    Pattern Recognition and Machine Learning, by C. Bishop.
 '''
 import numpy as np
-from MLUtil import logsumexp
+from ..util.MLUtil import logsumexp
 
 class MixModel( object ):
 

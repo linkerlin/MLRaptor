@@ -25,9 +25,9 @@
    Pattern Recognition and Machine Learning, by C. Bishop.
 '''
 import MixModel
-import obsModel.GaussDistr as GaussDistr
-
 import numpy as np
+
+from ..obsModel.GaussDistr import GaussDistr
 
 class GMM( MixModel.MixModel ):
 
@@ -39,7 +39,7 @@ class GMM( MixModel.MixModel ):
     ''' M-step update
     '''
     for k in xrange( self.K ):
-      self.obsDistr[k] = GaussDistr.GaussDistr( SS['mean'][k], SS['covar'][k] )
+      self.obsDistr[k] = GaussDistr( SS['mean'][k], SS['covar'][k] )
 
   def calc_soft_evidence_mat( self, X ):
     N,D = X.shape
