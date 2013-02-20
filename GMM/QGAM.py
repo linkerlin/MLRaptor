@@ -1,8 +1,10 @@
 '''
  Factorized Variational Distribution
-   for approximating a Gaussian Mixture Model
+   for approximating a Gaussian Admixture Model (GAM)
 
- q( Z, w, mu, Sigma ) = q(Z)q(w)q(mu|Sigma)q(Sigma)
+ W_g := mixture weights for group "g"
+
+ q( Z, W, mu, Sigma ) = q(Z) \prod_{g=1}^G q(W_g) q(mu|Sigma)q(Sigma)
 
  Author: Mike Hughes (mike@michaelchughes.com)
 
@@ -38,7 +40,7 @@ LOGPI = np.log(np.pi)
 LOGTWO = np.log(2.00)
 LOGTWOPI = np.log( 2.0*np.pi )
 
-class QGMM( object ):
+class QGAM( object ):
 
   def __init__(self, obsPrior, K=2, alpha0=1.0, **kwargs):
     self.K = K
@@ -58,55 +60,73 @@ class QGMM( object ):
     self.logdetLam = np.asarray( [q.ElogdetLam() for q in self.qObs] )
     self.logkappa     = np.log( np.asarray( [q.kappa for q in self.qObs] ) )
 
-    self.logw      = digamma( self.alpha ) - digamma( self.alpha.sum() )
-    
-  def E_step(self, X):
+
+  def E_step(self, Data, LocalP ):
+    GroupIDs = Data['GroupIDs']
+    X = Data['X']
     N,D = X.shape
     assert self.D == D
+
     # Create lpr : N x K matrix
     #   where lpr[n,k] =def= log r[n,k], as in Bishop PRML eq 10.67
-    lpr = np.zeros( (N, self.K) )
+    lpr = np.empty( (N, self.K) )
+
+    # LIKELIHOOD Terms
     for k in range(self.K):
-      # calculate the ( x_n - m )'*W*(x_n-m) term
       lpr[:,k] = -0.5*self.qObs[k].dF*self.qObs[k].dist_mahalanobis( X ) \
                  -0.5*D/self.qObs[k].kappa
-    lpr += self.logw
     lpr += 0.5*self.logdetLam
+
+    # PRIOR Terms
+    for gg in xrange( len(GroupIDs) ):
+      lpr[ GroupIDs[gg] ] += LocalP['Elogw_perGroup'][gg]
+
+
     lprSUM = logsumexp(lpr, axis=1)
     resp   = np.exp(lpr - lprSUM[:, np.newaxis])
     resp   /= resp.sum( axis=1)[:,np.newaxis] # row normalize
+
     return resp
 
   def M_step( self, SS ):
     '''M-step of the EM alg.
          for updates to w, mu, and Sigma
     '''
-    self.alpha   = self.alpha0 + SS['N']
+    alpha_perGroup = self.alpha0 + SS['NperGroup']
+    logw_perGroup  = digamma( alpha_perGroup ) - digamma( alpha_perGroup.sum(axis=1) )[:,np.newaxis]
+
     for k in xrange( self.K ):
       self.qObs[k] = self.prior.getPosteriorParams( \
                         SS['N'][k], SS['mean'][k], SS['covar'][k] )
-    self.update_helper_params()  
+    self.update_helper_params()
+
+    LocalP = dict()
+    LocalP['alpha_perGroup']  = alpha_perGroup
+    LocalP['Elogw_perGroup']   = logw_perGroup
+
+    return LocalP
       
-  def calc_suff_stats(self, X, resp):
-    SS = dict()
+  def calc_suff_stats(self, Data, resp):
+    GroupIDs = Data['GroupIDs']
+    X = Data['X']
     SS = dict()
     SS['N'] = np.sum( resp, axis=0 ) + EPS # add small pos. value to avoid nan
+    SS['NperGroup'] = np.zeros( (len(GroupIDs),self.K)  )
+    for gg in range( len(GroupIDs) ):
+      SS['NperGroup'][gg] = np.sum( resp[ GroupIDs[gg] ], axis=0 )
     SS['mean'] = np.dot( resp.T, X ) / SS['N'][:, np.newaxis]
     SS['covar'] = np.zeros( (self.K, self.D, self.D) )
     for k in range( self.K):
       Xdiff = X - SS['mean'][k]
       SS['covar'][k] = np.dot( Xdiff.T, Xdiff * resp[:,k][:,np.newaxis] )
       SS['covar'][k] /= SS['N'][k]
-    return SS    
-    
-  def calc_ELBO( self, resp=None, SS=None, X=None):
-    if SS is None or resp is None:
-      if X is None: raise ArgumentError('Need data to compute bound for')
-      resp = self.E_step( X )
-      SS = self.calc_suff_stats( X, resp)
+    return SS
+
+  def calc_ELBO( self, Data, resp, SS, LocalP ):
+    GroupIDs = Data['GroupIDs']
     ELBO = self.ElogpX( resp, SS) \
-           +self.ElogpZ( resp ) - self.ElogqZ( resp ) \
-           +self.ElogpW( )      - self.ElogqW()       \
+           +self.ElogpZ( GroupIDs, resp, LocalP ) - self.ElogqZ( GroupIDs, resp ) \
+           +self.ElogpW(  LocalP)      - self.ElogqW( LocalP)       \
            +self.ElogpMu()      - self.ElogqMu()      \
            +self.ElogpLam()     - self.ElogqLam() 
     return ELBO 
@@ -122,27 +142,33 @@ class QGMM( object ):
                 - self.qObs[k].dF* self.qObs[k].dist_mahalanobis( SS['mean'][k] )
     return 0.5*np.inner(SS['N'],lpX)
     
-  def ElogpZ( self, resp ):
-    ''' Bishop PRML eq. 10.72
-    '''
-    return np.sum( resp * self.logw )
+  def ElogpZ( self, GroupIDs, resp, LocalP ):
+    ElogpZ = 0
+    for gg in xrange( len(GroupIDs) ):
+      ElogpZ += np.sum( resp[GroupIDs[gg]] * LocalP['Elogw_perGroup'][gg] )
+    return ElogpZ
     
-  def ElogqZ( self, resp ):
-    ''' Bishop PRML eq. 10.75
-    '''
-    return np.sum( resp *np.log(resp+EPS) )
+  def ElogqZ( self, GroupIDs, resp ):
+    ElogqZ = 0
+    for gg in xrange( len(GroupIDs) ):
+      ElogqZ += np.sum( resp[GroupIDs[gg]] * resp[GroupIDs[gg]] )
+    return  ElogqZ
     
-  def ElogpW( self ):
-    ''' Bishop PRML eq. 10.73
-    '''
-    return gammaln(self.K*self.alpha0)-self.K*gammaln(self.alpha0) \
-             + (self.alpha0-1)*self.logw.sum()
+  def ElogpW( self, LP ):
+    nGroup = len(LP['alpha_perGroup'])
+    ElogpW = gammaln(self.K*self.alpha0)-self.K*gammaln(self.alpha0)    
+    ElogpW *= nGroup  # same prior over each group of data!
+    for gg in xrange( nGroup ):
+      ElogpW += (self.alpha0-1)*LP['Elogw_perGroup'][gg].sum()
+    return ElogpW
  
-  def ElogqW( self ):
-    ''' Bishop PRML eq. 10.76
-    '''
-    return gammaln(self.alpha.sum())-gammaln(self.alpha).sum() \
-             + np.inner( (self.alpha-1), self.logw )
+  def ElogqW( self, LP ):
+    ElogqW = 0
+    for gg in xrange( len(LP['alpha_perGroup']) ):
+      a_gg = LP['alpha_perGroup'][gg]
+      ElogqW +=  gammaln(  a_gg.sum()) - gammaln(  a_gg ).sum() \
+                  + np.inner(  a_gg -1,  LP['Elogw_perGroup'][gg] )
+    return ElogqW
              
   def ElogpMu( self ):
     ''' First four RHS terms (inside sum over K) in Bishop 10.74
@@ -177,39 +203,16 @@ class QGMM( object ):
     for k in xrange( self.K):
       lp[k] -= self.qObs[k].entropyWish()
     return lp.sum()
-    
-  #############################################  estimate GMM params    
-  def estGMM_MAP( self ):
-    w = self.alpha - 1
-    assert np.all( w > 0 )
-    w /= w.sum()
-    
-    mu = np.zeros( (self.K, self.D) )
-    Sigma = np.zeros( (self.K, self.D,  self.D) )
-    
-    for k in xrange(self.K):
-      m,S = self.qObs[k].getMAP()
-      mu[k] = m
-      Sigma[k] = S
-    mygmm = GMM.GMM( self.K, covariance_type='full')
-    mygmm.w = w
-    mygmm.mu = mu
-    mygmm.Sigma = Sigma
-    return mygmm
-  
-  def estGMM_Mean( self ):
-    w = self.alpha
-    w /= w.sum()
-    
-    mu = np.zeros( (self.K, self.D) )
-    Sigma = np.zeros( (self.K, self.D,  self.D) )
-    
-    for k in xrange(self.K):
-      m, S = self.qObs[k].getMean()
-      mu[k] = m
-      Sigma[k] = S
-    mygmm = GMM.GMM( self.K, covariance_type='full')
-    mygmm.w = w
-    mygmm.mu = mu
-    mygmm.Sigma = Sigma
-    return mygmm
+
+  #########################################################  OLD WAY
+  def update_local( self, X, GroupIDs ):
+    LP = dict()
+
+    return LP
+
+  def get_global_suff_stats( self, X, GroupIDs, LP ):
+    SS = dict()
+    return SS
+
+  def update_global( self, SS ):
+    pass

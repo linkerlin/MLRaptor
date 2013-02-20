@@ -39,7 +39,7 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
 
   def __init__( self, gmm, savefilename='results/GMMtrace', nIter=100, \
                     initname='kmeans',  convTHR=1e-10, \
-                    printEvery=5, saveEvery=5,\
+                    printEvery=5, saveEvery=5, doVerify=False, \
                     **kwargs ):
     self.gmm = gmm
     self.savefilename = savefilename
@@ -49,6 +49,7 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
     self.printEvery = printEvery
     self.saveEvery = saveEvery
     self.SavedIters = dict()
+    self.doVerify = doVerify
     
   def init_params( self, X, **kwargs): 
     '''Initialize internal parameters w,mu,Sigma
@@ -61,8 +62,7 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
     self.gmm.D = X.shape[1]
     resp = self.init_resp( X, self.gmm.K, **kwargs )
     self.M_step( X, resp )
-            
-            
+         
   def fit( self, X, seed=None):
     self.start_time = time.time()
     prevBound = -np.inf
@@ -86,9 +86,10 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
       #isValid = True
       isValid = prevBound < evBound or np.allclose( prevBound, evBound, rtol=self.convTHR )
       if not isValid:
+        print 'WARNING: evidence decreased!'
         print '    prev = % .15e' % (prevBound)
         print '     cur = % .15e' % (evBound)
-        raise Exception, 'evidence decreased!'
+        #raise Exception, 'evidence decreased!'
       if iterid >= self.saveEvery and np.abs(evBound-prevBound)/np.abs(evBound) <= self.convTHR:
         status = 'converged.'
         break
@@ -98,17 +99,17 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
     self.save_state(iterid, evBound) 
     self.print_state(iterid, evBound, doFinal=True, status=status)
 
-
   def E_step( self, X):
     lpr = np.log( self.gmm.w ) + self.gmm.calc_soft_evidence_mat( X )
     lprPerItem = logsumexp( lpr, axis=1 )
     resp   = np.exp( lpr-lprPerItem[:,np.newaxis] ) 
-    if not np.allclose( np.sum(resp,axis=1), 1.0 ):
-      np.set_printoptions( linewidth=120, precision=3, suppress=True )      
-      raise Exception, 'Responsibilities do not sum to one!'
+    if self.doVerify:
+      if not np.allclose( np.sum(resp,axis=1), 1.0 ):
+        np.set_printoptions( linewidth=120, precision=3, suppress=True )      
+        raise Exception, 'Responsibilities do not sum to one!'
     logEvidence = lprPerItem.sum()
     return resp, logEvidence
-    
+
   def M_step( self, X, resp):
     '''M-step of the EM alg.
        Updates internal mixture model parameters
@@ -124,13 +125,13 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
     mu = wavg_X / Nresp[:,np.newaxis]
 
     if self.gmm.covar_type == 'full':
-      sigma = self.full_covar_M_step( X, resp, wavg_X, mu, Nresp )
+      sigma = self.full_covar_M_step( X, resp, mu, Nresp )
       sigma += self.gmm.min_covar * np.eye( self.gmm.D )
     else:
-      sigma = self.diag_covar_M_step( X, resp, wavg_X, mu, Nresp )
+      sigma = self.diag_covar_M_step( X, resp, mu, Nresp, wavg_X )
       sigma += self.gmm.min_covar
 
-    mask = Nresp == 0
+    mask = ( Nresp == 0 )
     if np.sum( mask ) > 0:
       w[ mask ] = 0    
       mu[ mask ] = 0
@@ -140,14 +141,14 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
     self.gmm.mu    = mu
     self.gmm.Sigma = sigma
         
-  def diag_covar_M_step( self, X, resp,  wavg_X, mu, Nresp ):
+  def diag_covar_M_step( self, X, resp, mu, Nresp,  wavg_X ):
     wavg_X2 = np.dot(resp.T, X**2)
     wavg_M2 = mu**2 * Nresp[:,np.newaxis] 
     wavg_XM = wavg_X * mu
     sigma = (wavg_X2 -2*wavg_XM + wavg_M2 )
     return sigma / Nresp[:,np.newaxis]
     
-  def full_covar_M_step( self, X, resp, wavg_X, mu, Nresp ):
+  def full_covar_M_step( self, X, resp, mu, Nresp ):
     '''Update to full covariance matrix.  See Bishop PRML eq. 9.25
     '''
     N,D = X.shape
@@ -158,14 +159,14 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
     return Sigma    
         
   def save_state( self, iterid, evBound ):
+    if iterid in self.SavedIters:
+      return      
+    self.SavedIters[iterid] = True
+
     if iterid==0: 
       mode = 'w' # create logfiles from scratch on initialization
     else:
       mode = 'a' # otherwise just append
-
-    if iterid in self.SavedIters:
-      return      
-    self.SavedIters[iterid] = True
 
     if iterid % (self.saveEvery)==0:
       filename, ext = os.path.splitext( self.savefilename )
@@ -184,6 +185,8 @@ class EMLearnerGMM( LA.LearnAlgGMM ):
       with open( filename+'.evidence', mode) as f:
         f.write( '% .8e\n'% (evBound) )
         
+
+######################################################## 
 def np2flatstr( X, fmt='% .6f' ):
   return ' '.join( [fmt % x for x in X.flatten() ] )  
         

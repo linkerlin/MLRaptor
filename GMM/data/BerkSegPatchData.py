@@ -24,32 +24,34 @@ DEXT  = '*.dat*'
 
 
 def print_data_info():
-  print 'Patches from the Berkeley Segmentation dataset (training)'
+  print 'Data: Patches from the Berkeley Segmentation dataset (training)'
   fList = glob.glob( os.path.join(DPATH, DEXT) )
   X = np.loadtxt( fList.pop() )
   D = np.sqrt( X.shape[1] )
   print ' %d images.  ~ %d patches / image.  patch size: %d x %d pixels' \
               % (len(fList), X.shape[0], D,D )
 
-def get_data( seed=8675309, Nimg=2, **kwargs ):
+def get_data( seed=8675309, Nimg=50, **kwargs ):
   tstart = time.time()
   print '  Loading all patches from %d images...' % (Nimg)
 
   random.seed( seed )
   fList = glob.glob( os.path.join(DPATH, DEXT) )
   random.shuffle( fList )
+  fList = fList[:Nimg]
   Xlist = list()
-  for fname in fList[:Nimg]:
+  for fname in fList:
     Xlist.append( np.loadtxt( fname ) )
   X = np.vstack( Xlist )
   print '    done after %.1f sec. %d patches loaded.' % (time.time() - tstart, X.shape[0])
   return X
 
-def minibatch_generator(  batch_size=1000, nBatch=50, nRep=1, seed=8675309, **kwargs):
+def minibatch_generator(  batch_size=1000, Nimg=50, nBatch=50, nRep=1, seed=8675309, **kwargs):
   for repID in range( nRep ):
     random.seed( seed )
     fList = glob.glob( os.path.join(DPATH, DEXT) )
     random.shuffle( fList )
+    fList = fList[:Nimg]
     Xcache = np.loadtxt( fList.pop(0) )
     for batchID in range( nBatch ):
       try:

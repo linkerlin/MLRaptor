@@ -31,7 +31,7 @@ from MLUtil import logsumexp
 
 EPS = np.finfo(float).eps
 
-class VBLearnerGMM( LA.LearnAlgGMM ):
+class VBLearnerGAM( LA.LearnAlgGMM ):
 
   def __init__( self, qgmm, savefilename='GMMtrace', nIter=100, \
                     initname='kmeans',  convTHR=1e-10, \
@@ -46,24 +46,24 @@ class VBLearnerGMM( LA.LearnAlgGMM ):
     self.saveEvery = saveEvery
     self.SavedIters = dict()
     
-  def init_params( self, X, **kwargs ): 
-    self.qgmm.D = X.shape[1]
-    resp = self.init_resp( X, self.qgmm.K, **kwargs )
-    SS = self.qgmm.calc_suff_stats( X, resp)
-    self.qgmm.M_step( SS )
+  def init_params( self, Data, **kwargs ): 
+    self.qgmm.D = Data['X'].shape[1]
+    resp = self.init_resp( Data['X'], self.qgmm.K, **kwargs )
+    SS = self.qgmm.calc_suff_stats( Data, resp)
+    return self.qgmm.M_step( SS )
       
-  def fit( self, X, seed=None):
+  def fit( self, Data, seed=None):
     self.start_time = time.time()
     prevBound = -np.inf
     status = 'max iters reached.'
     for iterid in xrange(self.Niter):
       if iterid==0:
-        self.init_params( X, seed=seed )
+        LP = self.init_params( Data, seed=seed )
       else:
-        self.qgmm.M_step( SS )
-      resp = self.qgmm.E_step( X )
-      SS = self.qgmm.calc_suff_stats( X, resp )
-      evBound = self.qgmm.calc_ELBO( resp, SS )
+        LP = self.qgmm.M_step( SS )
+      resp = self.qgmm.E_step( Data, LP )
+      SS = self.qgmm.calc_suff_stats( Data, resp )
+      evBound = self.qgmm.calc_ELBO(  Data, resp, SS, LP )
 
       # Save and display progress
       self.save_state(iterid, evBound)
@@ -80,7 +80,7 @@ class VBLearnerGMM( LA.LearnAlgGMM ):
         print '    prev = % .15e' % (prevBound)
         print '     cur = % .15e' % (evBound)
         #raise Exception, 'evidence decreased!'
-      if iterid >= self.saveEvery and isEqual:
+      if iterid >= 3 and isEqual:
         status = 'converged.'
         break
       prevBound = evBound
@@ -103,8 +103,6 @@ class VBLearnerGMM( LA.LearnAlgGMM ):
 
     if iterid % (self.saveEvery)==0:
       filename, ext = os.path.splitext( self.savefilename )
-      with open( filename+'.alpha', mode) as f:
-        f.write( self.qgmm.to_alpha_string() +'\n')
 
       for k in range( self.qgmm.K):
         with open( filename+'.qObsComp%03d'%(k), mode) as f:

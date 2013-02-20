@@ -23,9 +23,11 @@ def extract_patches_from_dataset( imgdir, outdir, ext='jpg', doZip=False ):
 
     patchList = list()
     for pvec in h.FlatPatchGenerator():
+      pvec /= 255.0
       pvec = pvec - pvec.mean()
       patchList.append(  pvec )
-    np.savetxt( savefname,  np.vstack( patchList ) )
+        
+    np.savetxt( savefname,  np.vstack( patchList ), fmt='% 11.8f' )
     '''
     with open( outdir+basename+".dat", 'w') as f:
       for pvec in h.FlatPatchGenerator():

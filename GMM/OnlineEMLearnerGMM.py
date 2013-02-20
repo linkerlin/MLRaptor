@@ -124,10 +124,10 @@ class OnlineEMLearnerGMM( LA.LearnAlgGMM ):
     mu = wavg_X / Nresp[:,np.newaxis]
 
     if self.gmm.covar_type == 'full':
-      sigma = self.full_covar_M_step( Xchunk, resp, wavg_X, mu, Nresp )
+      sigma = self.full_covar_M_step( Xchunk, resp, mu, Nresp )
       sigma += self.gmm.min_covar*np.eye(self.gmm.D) 
     else:
-      sigma = self.diag_covar_M_step( Xchunk, resp, wavg_X, mu, Nresp )
+      sigma = self.diag_covar_M_step( Xchunk, resp, mu, Nresp, wavg_X )
       sigma += self.gmm.min_covar
 
     mask = ( Nresp == 0 )
@@ -138,14 +138,14 @@ class OnlineEMLearnerGMM( LA.LearnAlgGMM ):
       
     return w, mu, sigma
         
-  def diag_covar_M_step( self, X, resp,  wavg_X, mu, Nresp ):
+  def diag_covar_M_step( self, X, resp, mu, Nresp, wavg_X ):
     wavg_X2 = np.dot(resp.T, X**2)
     wavg_M2 = mu**2 * Nresp[:,np.newaxis] 
     wavg_XM = wavg_X * mu
     sigma = (wavg_X2 -2*wavg_XM + wavg_M2 )
     return sigma / Nresp[:,np.newaxis]
     
-  def full_covar_M_step( self, X, resp, wavg_X, mu, Nresp ):
+  def full_covar_M_step( self, X, resp, mu, Nresp ):
     '''Update to full covariance matrix.  See Bishop PRML eq. 9.25
     '''
     N,D = X.shape

@@ -30,7 +30,6 @@ References
 Pattern Recognition and Machine Learning by C. Bishop
 
 """
-import data.EasyToyGMMDataGenerator as Toy
 import numpy as np
 import scipy.linalg
 from MLUtil import logsumexp
@@ -129,11 +128,11 @@ class GMM(object):
       return self.calc_soft_evidence_mat_full( X )
     else:
       return self.calc_soft_evidence_mat_diag( X )
-    
+  
   def calc_soft_evidence_mat_full( self, X):
     N,D = X.shape
-    lpr = np.zeros( (X.shape[0], self.K) )
-    logdet = np.zeros( self.K)
+    lpr = np.empty( (X.shape[0], self.K) )
+    logdet = np.empty( self.K)
     for k in xrange( self.K ):
       try:
         cholSigma = scipy.linalg.cholesky( self.Sigma[k], lower=True)
@@ -145,7 +144,8 @@ class GMM(object):
         print self.mu[k]
         raise ValueError
       logdet[k] = 2*np.sum( np.log( np.diag( cholSigma ) ) )
-      lpr[:,k]  = self.calc_dist_mahalanobis_full( X, cholSigma, self.mu[k] )
+      Q = scipy.linalg.solve_triangular( cholSigma, (X-self.mu[k]).T, lower=True)
+      lpr[:,k]  = np.sum( Q**2, axis=0)  # see calc_dist_mahalanobis_full()
     lpr += logdet[np.newaxis,:]
     lpr += D*np.log(2*np.pi)
     return -0.5*lpr 
@@ -182,14 +182,16 @@ class GMM(object):
     #   let LL' = Sigma, then  invL' invL = invSigma, so
     #   dist(x) = dx' invL' invL dx.  If we solve for vector q s.t. Lq = dx
     #     then  =     q' q  = sum( q^2 ) 
-    dX = (X- mu[np.newaxis,:]).T  #  D x N
-    Q = scipy.linalg.solve_triangular( cholSigma, dX, lower=True)
+    Q = scipy.linalg.solve_triangular( cholSigma, (X-mu).T, lower=True)
     return np.sum( Q**2, axis=0)
     
+  def print_model_info( self ):
+    print 'Model: Gaussian Mixture with %d components. covar_type: %s.' % (self.K, self.covar_type)
+
 #########################################################  Doc Tests
 def verify_soft_evidence():
   '''Doctest to verify that full and diag covariance give same prob. result
-    >>> import data.EasyToyGMMDataGenerator as Toy
+    >>> import data.EasyToyGMMData as Toy
     >>> X = 10*np.random.randn( 100, 5) 
     >>> gdiag = GMM( K=3, covar_type='diag', D=5 )
     >>> gdiag.mu = Toy.Mu

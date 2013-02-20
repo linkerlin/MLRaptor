@@ -13,12 +13,38 @@ import scipy.spatial
 import scipy.cluster
 import time
 
-class LearnAlgGMM(object):
+class LearnAlg(object):
 
-  def fit( self, X):
+  def __init__( self, savefilename='results/GMMtrace', nIter=100, \
+                    initname='kmeans',  convTHR=1e-10, \
+                    printEvery=5, saveEvery=5, doVerify=False, \
+                    **kwargs ):
+    self.savefilename = savefilename
+    self.initname = initname
+    self.convTHR = convTHR
+    self.Niter = nIter
+    self.printEvery = printEvery
+    self.saveEvery = saveEvery
+    self.SavedIters = dict()
+    self.doVerify = doVerify
+
+  def init_params( self, Data):
+    pass
+
+  def fit( self, Data):
+    pass
+
+  def save_state( self, iterid, evBound ):
     pass
 
   ##################################################### Logging methods
+  def verify_evidence(self, isValid):
+    if not isValid:
+      print 'WARNING: evidence decreased!'
+      print '    prev = % .15e' % (prevBound)
+      print '     cur = % .15e' % (evBound)
+
+
   def print_state( self, iterid, evBound, doFinal=False, status=''):
     doPrint = iterid % self.printEvery==0
     logmsg  = '  %5d/%s after %6.0f sec. | evidence % .9e' % (iterid, str(self.Niter), time.time()-self.start_time, evBound)
@@ -32,15 +58,7 @@ class LearnAlgGMM(object):
     if doFinal:
       print '... done. %s' % (status)
 
-
-    
-  def save_state( self, iterid, evBound ):
-    pass
-
   ##################################################### Initialization methods
-  def init_params( self):
-    pass
-
   def init_resp( self, X, K, **kwargs):
     '''Initialize cluster responsibility matrix given data matrix X.
 
@@ -88,8 +106,6 @@ class LearnAlgGMM(object):
     Dist = scipy.spatial.distance.cdist( X, Mu )
     resp = self.get_resp_from_distance_matrix( Dist, doHard )
     return resp
-
-
 
   def get_random_resp( self, X, K, doHard=False, ctrIDs=None, seed=42):
     ''' Random sampling initialization of cluster responsibilities.

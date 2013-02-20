@@ -17,6 +17,7 @@ figs/
 notes/
 profiles/
 local/
+optim/
 
 # ======================================================  EXCLUDE FILE PATTERNS
 # Exclude user-specific config options for where to read and write data
