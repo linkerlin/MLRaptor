@@ -1,7 +1,7 @@
 '''
-EasyToyGMMData
+EasyToyGaussAdmixData
 
-  Streaming data generator that draws samples from a simple GMM
+  Streaming data generator that draws samples from a simple Gaussian Admixture
      with 3 components, easily separable means and covariances
 
   Author: Mike Hughes (mike@michaelchughes.com)
@@ -12,10 +12,6 @@ K = 3
 D = 5
 
 alpha = 0.5
-
-#  w = [0.25, 0.25, 0.5]
-w = 2**np.linspace( -K, -1, K)
-w[0] = 1 - sum(w[1:])
 
 # Mu = [ -10 0
 #          0 0
@@ -41,12 +37,13 @@ def print_data_info():
   for k in range( K ):
     print '                ', np2flatstr( Mu[k] )
 
-def get_data_by_groups( seed=8675309, nPerGroup=500, nGroup=50, **kwargs ):
+def get_data_by_groups( seed=8675309, nPerGroup=5000, nGroup=50, **kwargs ):
   np.random.seed( seed )
   X = np.empty( (nGroup*nPerGroup, D) )
   GroupIDs = list()
   for gg in xrange( nGroup ):
     w = np.random.mtrand.dirichlet( alpha*np.ones(K)  )
+    print w
     nPerComp = np.random.mtrand.multinomial( nPerGroup, w )
     Xlist = list()
     for k in xrange(K):

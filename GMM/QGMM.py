@@ -115,7 +115,6 @@ class QGMM( object ):
     ''' Bishop PRML eq. 10.71
     '''
     lpX = -self.D*LOGTWOPI*np.ones( self.K )
-    dist = np.zeros( self.K)
     for k in range( self.K ):
       lpX[k] += self.qObs[k].ElogdetLam() - self.D/self.qObs[k].kappa \
                 - self.qObs[k].dF* self.qObs[k].traceW( SS['covar'][k] )  \

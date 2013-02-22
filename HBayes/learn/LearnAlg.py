@@ -38,17 +38,19 @@ class LearnAlg(object):
     pass
 
   ##################################################### Logging methods
-  def verify_evidence(self, isValid):
+  def verify_evidence(self, evBound, prevBound):
+    isValid = prevBound < evBound or np.allclose( prevBound, evBound, rtol=self.convTHR )
     if not isValid:
       print 'WARNING: evidence decreased!'
       print '    prev = % .15e' % (prevBound)
       print '     cur = % .15e' % (evBound)
-
+    isConverged = np.abs(evBound-prevBound)/np.abs(evBound) <= self.convTHR
+    return isConverged 
 
   def print_state( self, iterid, evBound, doFinal=False, status=''):
     doPrint = iterid % self.printEvery==0
     logmsg  = '  %5d/%s after %6.0f sec. | evidence % .9e' % (iterid, str(self.Niter), time.time()-self.start_time, evBound)
-    if iterid ==0:
+    if iterid ==0 and not doFinal:
       print '  Initialized via %s.' % (self.initname)
       print logmsg
     elif (doFinal and not doPrint):

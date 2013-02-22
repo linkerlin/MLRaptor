@@ -20,7 +20,16 @@ class VBLearnAlg( LearnAlg.LearnAlg ):
     LP['resp'] = self.init_resp( Data['X'], self.qmixmodel.K, **kwargs )
     SS = self.qmixmodel.get_global_suff_stats( Data, LP )
     self.qmixmodel.update_global_params( SS )
-    return SS
+    if 'GroupIDs' in Data:
+      LP = self.init_params_perGroup( Data, LP)
+    return LP
+
+  def init_params_perGroup(self, Data, LP ):
+    GroupIDs = Data['GroupIDs']
+    LP['N_perGroup'] = np.zeros( (len(GroupIDs),self.qmixmodel.K)  )
+    for gg in range( len(GroupIDs) ):
+      LP['N_perGroup'][gg] = np.sum( LP['resp'][ GroupIDs[gg] ], axis=0 )
+    return LP
 
   def fit( self, Data, seed ):
     self.start_time = time.time()
@@ -29,15 +38,15 @@ class VBLearnAlg( LearnAlg.LearnAlg ):
 
     for iterid in xrange(self.Niter):
       if iterid==0:
-        SS = self.init_params( Data, seed=seed )
-        LP = self.qmixmodel.calc_local_params( Data )
+        LP = self.init_params( Data, seed=seed )
+        LP = self.qmixmodel.calc_local_params( Data, LP )
       else:
         # M-step
-        SS = self.qmixmodel.get_global_suff_stats( Data, LP )
         self.qmixmodel.update_global_params( SS ) 
         # E-step 
-        LP = self.qmixmodel.calc_local_params( Data )
+        LP = self.qmixmodel.calc_local_params( Data, LP )
 
+      SS = self.qmixmodel.get_global_suff_stats( Data, LP )
       evBound = self.qmixmodel.calc_evidence( Data, SS, LP )
 
       # Save and display progress
@@ -47,10 +56,9 @@ class VBLearnAlg( LearnAlg.LearnAlg ):
       # Check for Convergence!
       #  throw error if our bound calculation isn't working properly
       #    but only if the gap is greater than some tolerance
-      isValid = prevBound < evBound or np.allclose( prevBound, evBound, rtol=self.convTHR )
-      self.verify_evidence( isValid )
+      isConverged = self.verify_evidence( evBound, prevBound )
 
-      if iterid >= self.saveEvery and np.abs(evBound-prevBound)/np.abs(evBound) <= self.convTHR:
+      if isConverged:
         status = 'converged.'
         break
       prevBound = evBound
@@ -58,7 +66,7 @@ class VBLearnAlg( LearnAlg.LearnAlg ):
     #Finally, save, print and exit 
     self.save_state(iterid, evBound) 
     self.print_state(iterid, evBound, doFinal=True, status=status)
-
+    return LP
 
   def save_state( self, iterid, evBound ):
     pass

@@ -25,13 +25,15 @@ import numpy as np
 from scipy.special import gammaln, digamma
 from ..util.MLUtil import logsumexp
 
+EPS = 10*np.finfo(float).eps
+
 class QMixModel( object ):
 
   def __init__( self, K, alpha0 ):
     self.K = K
     self.alpha0 = alpha0
 
-  def calc_local_params( self, Data ):
+  def calc_local_params( self, Data, LP=None ):
     ''' 
     '''
     LP = dict()

@@ -81,7 +81,6 @@ class QGAM( object ):
     for gg in xrange( len(GroupIDs) ):
       lpr[ GroupIDs[gg] ] += LocalP['Elogw_perGroup'][gg]
 
-
     lprSUM = logsumexp(lpr, axis=1)
     resp   = np.exp(lpr - lprSUM[:, np.newaxis])
     resp   /= resp.sum( axis=1)[:,np.newaxis] # row normalize

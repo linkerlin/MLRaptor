@@ -25,8 +25,8 @@
  -------
    Pattern Recognition and Machine Learning, by C. Bishop.
 '''
-import QMixModel
-import QGMM
+import QAdmixModel
+import QGAM
 
 import numpy as np
 
@@ -34,10 +34,10 @@ LOGPI = np.log(np.pi)
 LOGTWO = np.log(2.00)
 LOGTWOPI = np.log( 2.0*np.pi )
 
-class QGMM( QMixModel.QMixModel ):
+class QGAM( QAdmixModel.QAdmixModel ):
 
   def __init__( self, K=2, alpha0=None, obsPrior=None ):
-    super(QGMM, self).__init__( K, alpha0 )
+    super(QGAM, self).__init__( K, alpha0 )
     self.obsPrior = obsPrior
     self.qobsDistr = [ None for k in xrange(self.K)]
 

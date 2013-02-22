@@ -99,6 +99,7 @@ class GaussWishDistr(object):
     logp = 0.5*self.ElogdetLam \
           -0.5*self.dF*self.dist_mahalanobis( X ) \
           -0.5*self.D/self.kappa
+    return logp
   
   def dist_mahalanobis(self, X):
     '''Calculate Mahalanobis distance to x
@@ -121,7 +122,7 @@ class GaussWishDistr(object):
          as defined in Bishop PRML B.82
     '''
     return -self.logWishNormConst() \
-           - 0.5*(self.dF-self.D-1)*self.ElogdetLam() \
+           - 0.5*(self.dF-self.D-1)*self.ElogdetLam \
            + 0.5*self.D*self.dF
   
   def E_logdetLam( self ):
