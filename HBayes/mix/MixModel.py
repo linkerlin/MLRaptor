@@ -28,7 +28,7 @@ class MixModel( object ):
 
   def __init__( self, K, alpha0 ):
     self.K = K
-    self.alpha0 = 0.0
+    self.alpha0 = alpha0
     self.w = np.zeros( K )
     # obs distr specfics left up to sub-classes
 
@@ -54,9 +54,13 @@ class MixModel( object ):
     SS = self.get_obs_suff_stats( SS, Data, LP )
     return SS
 
-  def update_global_params( self, SS ):
+  def update_global_params( self, SS, rho=None ):
     '''
     '''
-    self.w = self.alpha0 + SS['N']
-    self.w /= self.w.sum()
-    self.update_obs_params( SS )
+    w = self.alpha0 + SS['N']
+    w /= w.sum()
+    if rho is None:
+    	self.w = w
+    else:
+    	self.w = rho*w + (1-rho)*self.w
+    self.update_obs_params( SS, rho)

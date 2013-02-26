@@ -70,6 +70,9 @@ class GaussWishDistr(object):
    
   def __str__(self): 
     return '%f %s %f %s' % (self.kappa,  np2flatstr(self.m), self.dF, np2flatstr(self.invW)  )
+   
+  def getMeanCovMat(self):
+    return (1.0/self.kappa) * self.invW / (self.dF - self.D -1 )
     
   def getMean( self ):
     mu = self.m
@@ -88,6 +91,23 @@ class GaussWishDistr(object):
     invW  = self.invW + N*covar  \
             + (self.kappa*N)/(self.kappa+N)*np.outer(mean - self.m,mean - self.m)
     return GaussWishDistr( self.dF+N, invW,  kappa, m )
+  
+  def rho_update( self, qDistr, rho):
+    SigOld = self.getMeanCovMat()
+    self.invW  = rho*qDistr.invW  + (1-rho)*self.invW
+    self.dF    = rho*qDistr.dF    + (1-rho)*self.dF
+    self.kappa = rho*qDistr.kappa + (1-rho)*self.kappa
+    mEasy     = rho*qDistr.m     + (1-rho)*self.m
+    SigNew = self.getMeanCovMat()
+    SigUp  = qDistr.getMeanCovMat()
+    mBetter   = np.dot( SigNew, rho*np.linalg.solve(SigUp,qDistr.m) \
+                                + (1-rho)*np.linalg.solve(SigOld,self.m)   )
+                                
+    np.set_printoptions( precision=7 )                           
+    print ' ', mEasy
+    print ' ', mBetter
+    print ' '                           
+    self.m = mBetter
     
   def log_W_det( self ):
     return -2.0*np.sum( np.log( np.diag( self.cholinvW ) )  )  
@@ -100,7 +120,7 @@ class GaussWishDistr(object):
           -0.5*self.dF*self.dist_mahalanobis( X ) \
           -0.5*self.D/self.kappa
     return logp
-  
+      
   def dist_mahalanobis(self, X):
     '''Calculate Mahalanobis distance to x
              dist(x) = (x-m)'*W*(x-m)

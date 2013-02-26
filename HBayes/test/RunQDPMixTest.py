@@ -1,6 +1,6 @@
 from ..data import ToyData
 from ..obsModel.GaussWishDistr import GaussWishDistr
-from ..admix.QGAM import QGAM
+from ..mix.QDPGMM import QDPGMM
 from ..learn.VBLearnAlg import VBLearnAlg
 
 import numpy as np
@@ -14,18 +14,15 @@ def demoQGMM():
 
   gw = GaussWishDistr( D=5 )
 
-  qgam = QGAM( K=3, alpha0=0.5, obsPrior=gw)
+  q = QDPGMM( K=10, alpha0=0.5, obsPrior=gw)
 
-  vb = VBLearnAlg( qgam, printEvery=1, nIter=100, initname='random')
+  vb = VBLearnAlg( q, printEvery=50, nIter=500, initname='random')
  
-  Data =ToyData.get_data_by_groups(seed=seed)
+  Data =ToyData.get_data(seed=seed)
   LP = vb.fit( Data, seed=seed )
   
-  np.set_printoptions( linewidth=120, precision=3, suppress=True)
-  print 'Learned W __ per group'
-  print np.exp( LP['Elogw_perGroup'] )[-10:]
-  print 'True W __ per group'
-  print Data['TrueW_perGroup'][-10:]
+  np.set_printoptions( linewidth=120, precision=2, suppress=True)
+  print np.exp( q.Elogw )
 
 if __name__ == '__main__':
   demoQGMM()

@@ -44,11 +44,19 @@ class QGAM( QAdmixModel.QAdmixModel ):
   def set_dims( self, Data ):
     self.D = Data['X'].shape[1]
     
-  def update_obs_params( self, SS):
+  def update_obs_params( self, SS, rho=None):
     ''' M-step update
     '''
-    for k in xrange( self.K ):
-      self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['N'][k], SS['mean'][k], SS['covar'][k] )
+    if rho is None:
+      for k in xrange( self.K ):
+        self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( \
+                               SS['N'][k], SS['mean'][k], SS['covar'][k] )
+    else:
+      for k in xrange( self.K ):      
+  	    postDistr = self.obsPrior.getPosteriorDistr( \
+  	                           SS['N'][k], SS['mean'][k], SS['covar'][k] )
+  	    self.qobsDistr[k].rho_update( postDistr, rho )
+		  	
 
   def get_obs_suff_stats( self, SS, Data, LP ):
     ''' Suff Stats

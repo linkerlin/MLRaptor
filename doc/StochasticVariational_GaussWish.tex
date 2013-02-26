@@ -1,0 +1,138 @@
+\documentclass{article}
+
+\usepackage{parskip}
+\usepackage{amsmath, amssymb}
+\usepackage{url}
+
+\title{Stochastic Variational Inference for Gaussian Mixtures: Some Gotchas}
+\author{Mike Hughes}
+
+\newcommand{\BF}[1]{\mbox{\boldmath$#1$}}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+Hoffman, Blei, and Bach (2010) describe a framework for stochastic variational inference for Latent Dirichlet Allocation.  Later work by Hoffman, Blei, Wang, and Paisley (\url{http://arxiv.org/abs/1206.7051}) extends this to any hierarchical Bayesian model with conditional distributions in the exponential family.
+
+Suppose we have a model with the key global parameter is denoted by $\beta$.  $\beta$ could denote the \emph{topic-word} distributions for each of $K$ topics in LDA, or perhaps $\beta$ could denote a mean and covariance $\mu,\Sigma$ for each emission component of a Gaussian mixture.  In the first case, $p(\beta)$ would be Dirichlet, while in the latter case, $p(\beta)$ would be a Gaussian-Wishart distribution.
+
+A standard result is that the factorized variational distribution $q(\beta)$ has the same conditional exponential family form as the prior.  To be consistent with Hoffman et al's notation, we'll denote the set of parameters of the variational distribution as $\BF{\eta}$, so we may write $q(\BF{\beta} | \BF{\eta} )$.   For the Gaussian-Wishart in $D$-dimensions, we write:
+
+\begin{align}
+\BF{\eta}_k &= m, \kappa, v, W^{-1} \\
+q( \mu, \Sigma | \BF{\eta} ) &= \mathcal{N}( \mu | m,  \kappa^{-1} \Sigma )  \mathcal{W}( \Sigma | v, W^{-1} )
+\end{align}
+
+We follow Bishop in parameterizing this distribution in terms of the \emph{inverse} matrix $W^{-1}$, which makes many updates easier.
+
+Here, $m$ is the $D$-dim mean vector of the Gaussian on $\mu$.   $v$ gives the degrees of freedom, and $W$ is a $DxD$ positive definite matrix.   We recall some simple moments of the variables of interest.
+
+\begin{align}
+\mathbb{E}[  \Sigma ] &= \frac{W^{-1}}{ v - D - 1} \\
+\mathbb{E}[ \mu ] &= m
+\end{align}
+
+Thus far, we have acted as if there were only one global Gaussian distribution.  Usually, we have $K$ components in a mixture model.  Still, we can write the variation distribution over $\BF{\beta}_k$ for a single mixture component $k$:
+\begin{align}
+\BF{\beta}_k &= \mu_k, \Sigma_k \\
+q( \mu_k, \Sigma_k) | \BF{\eta}_k ) &= \mathcal{N}( \mu_k | m_k,  \kappa_k^{-1} \Sigma_k )  \mathcal{W}( \Sigma_k | v_k, W_k^{-1} )
+\end{align}
+
+\section{Problem}
+Now, according to Hoffman et al., in any conjugate variational setting, we know that the distribution $q(\beta)$ is in the exponential family.  So we may always write
+
+\begin{align}
+q(\BF{\beta} | \BF{\lambda} ) \propto \exp( \BF{\lambda}^T t(\BF{\beta}) )
+\end{align}
+
+where $\BF{\lambda}$ represents the \textbf{natural parameter} vector.  The fact that $q()$ is in the exponential family guarantees that there will be a one-to-one, invertible mapping between these  \emph{natural} parameters $\lambda$ and the \emph{standard} parameters $\eta$.
+
+The natural parameterization approach allows a convenient stochastic natural gradient optimization.  When all is said and done, we can write the "M-step" update equation very simply in terms of $\lambda$:
+\begin{align}\label{eq:updateLambda}
+\lambda^{t+1} \gets (1-\rho_t) \lambda^{t} + \rho_t \lambda^*
+\end{align}
+
+where the superscript $t$ indicates global parameters at iteration $t$, and $\lambda^*$ denotes the global update parameters using sufficient statistics \emph{only} from the current mini-batch (at iteration $t$). 
+
+Our update equation (Eq. \ref{eq:updateLambda}) is satisfyingly simple.  However, we often computationally represent  $q(\beta)$ using the standard parameters $\eta$, not the natural parameters $\lambda$.  For Hoffman's online LDA, it turns out that we can simply translate this update directly to find
+\begin{align}\label{eq:updateEta}
+\eta^{t+1} \gets (1-\rho_t) \eta^{t} + \rho_t \eta^*
+\end{align}
+However, we must not be fooled into thinking that we can \emph{always} rewrite the update for $\lambda$ so simply.  In general, the update for $\eta$ may not be just a convex mixture between the previous global parameters and the new minibatch parameters.  It will depend on the mapping $\lambda \leftarrow \rightarrow \eta$. 
+
+\subsection{Case where it works: Dirichlet Prior}
+
+Here, each global "topic" parameter vector $\beta$ is a distribution over $V$ vocabulary words. So the standard parameters $\eta$ are just non-negative numbers.
+
+\begin{align}
+q( \BF{\beta} | \eta_1, \eta_2, \ldots \eta_V )
+\end{align}
+
+In the \emph{natural} parameterization, we simply have $\lambda_v = \eta_v-1$ for each word symbol $v = 1,2,\ldots V$.
+
+Thus, we find by rewriting Eq. \ref{eq:updateLambda} so that we replace $\lambda$ in terms of $\eta$, we find we have
+
+\begin{align}
+\lambda^{t+1} &\gets (1-\rho_t) \lambda^{t} + \rho_t \lambda^* \notag \\
+\eta^{t+1} -1 &\gets  (1-\rho_t) [ \eta^{t}  -1 ] + \rho_t [\eta^* -1 ] \notag \\
+\eta^{t+1}  &\gets  (1-\rho_t) \eta^{t}  + \rho_t \eta^* 
+\end{align}
+
+Thus, the update in terms of standard parameter $\eta$ has exactly the same form as that for the natural parameter $\lambda$. 
+
+\subsection{Case where it fails: Gaussian Prior}
+
+Consider the case where each component vector $\BF{\beta}$ represents the mean $\mu$ and covariance $\Sigma$.  We can use standard derivations to find $\lambda$ as a function of $\eta = (\eta_1, \eta_2, \eta_3, \eta_4) = (v, W^{-1}, m, \kappa)$.
+
+\subsubsection{Wishart parameters $v, W^{-1}$}
+
+For the Wishart $\Sigma \sim \mathcal{W}( \Sigma | v, W^{-1} )$, we know that
+\begin{align}
+  \lambda_1 &= \eta_1 - D -1 = v - D - 1 \notag \\
+  \lambda_2 &= \eta_2 = W^{-1}
+\end{align}
+
+Because both $\lambda_1, \lambda_2$ are just simply either equal to their corresponding $\eta$ parameters, or off by an additive term \emph{constant} across $\lambda^t,\lambda^*$,  we find that we can rewrite Eq. \ref{eq:updateLambda} by just replacing $v, W^{-1}$ in for $\lambda$.
+\begin{align}
+v^{t+1} \gets (1-\rho) v^{t} + \rho v^* \\
+[W^{-1}]^{t+1} \gets (1-\rho) [W^{-1}]^{t} + \rho [W^{-1}]^*
+\end{align}
+
+So far so good.  However, the next updates are where the challenge lies.
+
+\subsubsection{Gaussian parameters $m,\kappa$}
+
+For the Gaussian $\mu \sim \mathcal{N}( \mu | m, \kappa^{-1} \Sigma)$, standard results show that:
+
+\begin{align}
+  \lambda_3(\eta) &= -\frac{1}{2}\eta_4 \eta_3 = -\frac{1}{2}\kappa \Sigma^{-1} m \notag \\
+  \lambda_4(\eta) &= -\frac{1}{2}\eta_4 = -\frac{1}{2}\kappa \Sigma^{-1}
+\end{align}
+
+
+\textbf{PROBLEM 1:}  how to write $\lambda$ in terms of $\kappa, m$?
+
+Our Gaussian of interest is parameterized using $\Sigma$, which is itself a random variable drawn from $q(|\lambda)$, not a deterministic variable that we can map directly from $\lambda$.  So we cannot simply "plug in" $\Sigma$ in the above updates.  We need to do something else.
+
+We tentatively solve this by replacing $\Sigma$ as $\mathbb{E}[ \Sigma] = \frac{1}{v - D -1}W^{-1}$  instead.
+know that
+\begin{align}
+  \lambda_3(\eta) &= -\frac{1}{2}\eta_4 \eta_3 = -\frac{1}{2}\kappa \mathbb{E}[\Sigma]^{-1} m \notag \\
+  \lambda_4(\eta) &= -\frac{1}{2}\eta_4 = -\frac{1}{2}\kappa \mathbb{E}[\Sigma]^{-1}
+\end{align}
+
+\textbf{PROBLEM 2:} rewriting stochastic variational update in terms of $\kappa$
+
+This still implies that the update equations in terms of the natural parameters are not quite simply $m\gets (1-\rho)m^t +\rho m^*$.  Instead,
+ 
+\begin{align}
+\lambda_3^{t+1} = (1-\rho_t) \lambda_3^t  + \rho_t \lambda_3^* \\
+L^{t+1} m^{t+1}  =(1-\rho_t) [ L^t m^t]  + \rho_t [ L^* m^*]  \\
+m^{t+1} = [L^{t+1}]^{-1} \Big[  (1-\rho_t) [ L^t m^t]  + \rho_t [ L^* m^*] \Big]
+\end{align}
+
+This can't be simplified any more in general.  So the update to the mean parameter $m$ is not just a simple convex combination.  Instead, it's adjusted by the precision $L = \kappa \Lambda = \kappa \Sigma^{-1}$.  
+
+
+\end{document}

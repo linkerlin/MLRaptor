@@ -1,8 +1,8 @@
 '''
  Mean-Field Variational Approximation
    to a Gaussian Mixture Model
-    with a finite number of components K
-
+    with a Dirichlet Process allocation
+    
  Author: Mike Hughes (mike@michaelchughes.com)
 
  Parameters
@@ -25,8 +25,8 @@
  -------
    Pattern Recognition and Machine Learning, by C. Bishop.
 '''
-import QMixModel
-import QGMM
+import QDPMixModel
+import QDPGMM
 
 import numpy as np
 
@@ -34,31 +34,27 @@ LOGPI = np.log(np.pi)
 LOGTWO = np.log(2.00)
 LOGTWOPI = np.log( 2.0*np.pi )
 
-class QGMM( QMixModel.QMixModel ):
+class QDPGMM( QDPMixModel.QDPMixModel ):
 
-  def __init__( self, K=2, alpha0=None, obsPrior=None ):
-    super(QGMM, self).__init__( K, alpha0 )
+  def __init__( self, K=2, alpha0=None, obsPrior=None, **kwargs ):
+    super(type(self),self).__init__( K, alpha0, **kwargs )
     self.obsPrior = obsPrior
     self.qobsDistr = [ None for k in xrange(self.K)]
 
   def set_dims( self, Data ):
     self.D = Data['X'].shape[1]
     
-  def update_obs_params( self, SS, rho=None, Ntotal=None):
+  def update_obs_params( self, SS, rho=None):
     ''' M-step update
     '''
     if rho is None:
       for k in xrange( self.K ):
         self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['N'][k], SS['mean'][k], SS['covar'][k] )
     else:
-      if Ntotal is None:
-        ampF = 1
-      else:
-        ampF = Ntotal/SS['Nall']
       for k in xrange( self.K):
-  	    postDistr = self.obsPrior.getPosteriorDistr( ampF*SS['N'][k], SS['mean'][k], SS['covar'][k] )
+  	    postDistr = self.obsPrior.getPosteriorDistr( SS['N'][k], SS['mean'][k], SS['covar'][k] )
   	    self.qobsDistr[k].rho_update( postDistr, rho )
-		  	
+
   def get_obs_suff_stats( self, SS, Data, LP ):
     ''' Suff Stats
     '''

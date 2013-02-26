@@ -18,6 +18,7 @@ class LearnAlg(object):
   def __init__( self, savefilename='results/GMMtrace', nIter=100, \
                     initname='kmeans',  convTHR=1e-10, \
                     printEvery=5, saveEvery=5, doVerify=False, \
+                    rhodelay=1, rhoexp=0.6, \
                     **kwargs ):
     self.savefilename = savefilename
     self.initname = initname
@@ -27,6 +28,8 @@ class LearnAlg(object):
     self.saveEvery = saveEvery
     self.SavedIters = dict()
     self.doVerify = doVerify
+    self.rhodelay =rhodelay
+    self.rhoexp   = rhoexp
 
   def init_params( self, Data):
     pass
@@ -47,9 +50,13 @@ class LearnAlg(object):
     isConverged = np.abs(evBound-prevBound)/np.abs(evBound) <= self.convTHR
     return isConverged 
 
-  def print_state( self, iterid, evBound, doFinal=False, status=''):
+  def print_state( self, iterid, evBound, doFinal=False, status='', rho=None):
     doPrint = iterid % self.printEvery==0
-    logmsg  = '  %5d/%s after %6.0f sec. | evidence % .9e' % (iterid, str(self.Niter), time.time()-self.start_time, evBound)
+    if rho is None:
+      rhoStr = ''
+    else:
+      rhoStr = '%.4f |' % (rho)
+    logmsg  = '  %5d/%s after %6.0f sec. | %s evidence % .9e' % (iterid, str(self.Niter), time.time()-self.start_time, rhoStr, evBound)
     if iterid ==0 and not doFinal:
       print '  Initialized via %s.' % (self.initname)
       print logmsg

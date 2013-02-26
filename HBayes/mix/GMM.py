@@ -34,12 +34,20 @@ class GMM( MixModel.MixModel ):
   def __init__( self, K, alpha0 ):
     super(GMM, self).__init__( K, alpha0 )
     self.obsDistr = [ None for k in xrange(self.K)]
+    self.min_covar = 1e-8
 
-  def update_obs_params( self, SS):
+  def update_obs_params( self, SS, rho=None):
     ''' M-step update
     '''
-    for k in xrange( self.K ):
-      self.obsDistr[k] = GaussDistr( SS['mean'][k], SS['covar'][k] )
+    if rho is None:
+      for k in xrange( self.K ):
+        self.obsDistr[k] = GaussDistr( SS['mean'][k], SS['covar'][k]+self.min_covar )
+        				 
+    else:
+		  for k in xrange( self.K ):
+				self.obsDistr[k].mu = rho* SS['mean'][k] + (1-rho)*self.obsDistr[k].mu
+				self.obsDistr[k].Sigma = rho* SS['covar'][k] + (1-rho)*self.obsDistr[k].Sigma
+				self.obsDistr[k].Sigma += self.min_covar
 
   def calc_soft_evidence_mat( self, X ):
     N,D = X.shape

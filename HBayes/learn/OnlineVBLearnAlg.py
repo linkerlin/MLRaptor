@@ -8,10 +8,10 @@ import time
 
 import LearnAlg
 
-class VBLearnAlg( LearnAlg.LearnAlg ):
+class OnlineVBLearnAlg( LearnAlg.LearnAlg ):
 
   def __init__( self, qmixmodel, **kwargs ):
-    super(VBLearnAlg, self).__init__( **kwargs )
+    super(OnlineVBLearnAlg, self).__init__( **kwargs )
     self.qmixmodel = qmixmodel
 
   def init_params( self, Data, **kwargs):
@@ -31,38 +31,33 @@ class VBLearnAlg( LearnAlg.LearnAlg ):
       LP['N_perGroup'][gg] = np.sum( LP['resp'][ GroupIDs[gg] ], axis=0 )
     return LP
 
-  def fit( self, Data, seed ):
+  def fit( self, DataGenerator, seed, Ntotal=10000, Dtest=None ):
     self.start_time = time.time()
-    status = 'max iters reached.'
-    prevBound = -np.inf
-
-    for iterid in xrange(self.Niter):
+    rho = 1.0
+    tLP =None
+    for iterid, Dchunk in enumerate(DataGenerator):
       if iterid==0:
-        LP = self.init_params( Data, seed=seed )
-        LP = self.qmixmodel.calc_local_params( Data, LP )
+        LP = self.init_params( Dchunk, seed=seed )
+        LP = self.qmixmodel.calc_local_params( Dchunk, LP )
       else:
-        # M-step
-        self.qmixmodel.update_global_params( SS ) 
-        # E-step 
-        LP = self.qmixmodel.calc_local_params( Data, LP )
+        self.qmixmodel.update_global_params( SS, rho, Ntotal )
+        LP = self.qmixmodel.calc_local_params( Dchunk, LP )
+      SS = self.qmixmodel.get_global_suff_stats( Dchunk, LP )
 
-      SS = self.qmixmodel.get_global_suff_stats( Data, LP )
-      evBound = self.qmixmodel.calc_evidence( Data, SS, LP )
+      if Dtest is None:
+        evBound = self.qmixmodel.calc_evidence( Dchunk, SS, LP )
+      else:
+      	tLP = self.qmixmodel.calc_local_params( Dtest, tLP )
+      	tSS = self.qmixmodel.get_global_suff_stats( Dtest, tLP)
+      	evBound = self.qmixmodel.calc_evidence( Dtest, tSS, tLP )
+      
+      rho = ( iterid + self.rhodelay )**(-1*self.rhoexp)
 
       # Save and display progress
       self.save_state(iterid, evBound)
-      self.print_state(iterid, evBound)
+      self.print_state(iterid, evBound, rho=rho)
 
-      # Check for Convergence!
-      #  throw error if our bound calculation isn't working properly
-      #    but only if the gap is greater than some tolerance
-      isConverged = self.verify_evidence( evBound, prevBound )
-
-      if isConverged:
-        status = 'converged.'
-        break
-      prevBound = evBound
-
+    status = 'all data gone.'
     #Finally, save, print and exit 
     self.save_state(iterid, evBound) 
     self.print_state(iterid, evBound, doFinal=True, status=status)

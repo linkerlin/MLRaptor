@@ -54,15 +54,24 @@ class QMixModel( object ):
     '''
     SS = dict()
     SS['N'] = np.sum( LP['resp'], axis=0 )
+    SS['Nall'] = SS['N'].sum()
     SS = self.get_obs_suff_stats( SS, Data, LP )
     return SS
     
-  def update_global_params( self, SS ):
+  def update_global_params( self, SS, rho=None, Ntotal=None ):
     '''
     '''
-    self.alpha   = self.alpha0 + SS['N']
+    if rho is None:
+      self.alpha   = self.alpha0 + SS['N']
+    else:
+      if Ntotal is None:
+        ampF = 1
+      else:
+        ampF = Ntotal/SS['Nall']
+      alph = self.alpha0 + ampF*SS['N']
+      self.alpha   = rho*alph + (1-rho)*self.alpha
     self.Elogw      = digamma( self.alpha ) - digamma( self.alpha.sum() )
-    self.update_obs_params( SS )
+    self.update_obs_params( SS, rho, Ntotal )
     
     
   def E_logpZ( self, LP ):
