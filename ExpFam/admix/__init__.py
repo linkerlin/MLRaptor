@@ -4,3 +4,4 @@ The :mod:`admix` module provides variational approximations to
 """
 
 from .QAdmixModel import QAdmixModel
+from .QHDPAdmixModel import QHDPAdmixModel

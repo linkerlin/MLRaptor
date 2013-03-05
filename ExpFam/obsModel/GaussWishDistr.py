@@ -45,7 +45,7 @@ class GaussWishDistr(object):
   
   
   
-  def __init__(self, D=None, dF=None, invW=None, kappa=None, m=None):
+  def __init__(self, D=None, dF=None, invW=None, kappa=None, m=None, **kwargs):
     self.D = D
     if D is not None:
       self.dF = dF

@@ -26,13 +26,16 @@ from ..util.MLUtil import logsumexp
 
 class MixModel( object ):
 
-  def __init__( self, K, alpha0 ):
+  def __init__( self, K, alpha0, **kwargs ):
     self.qType = 'EM'
     self.K = K
     self.alpha0 = alpha0
     self.w = np.zeros( K )
     # obs distr specfics left up to sub-classes
 
+  def to_string( self):
+    return 'Finite mixture model with %d components' % (self.K)
+    
   def calc_local_params( self, Data, LP ):
     ''' 
     '''

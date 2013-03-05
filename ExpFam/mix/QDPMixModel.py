@@ -50,7 +50,10 @@ class QDPMixModel( object ):
     #  q( v_k ) = Beta( qalpha1[k], qalpha0[k] )
     self.qalpha1 = np.zeros( K )
     self.qalpha0 = np.zeros( K )
-  	
+  
+  def to_string( self):
+    return 'DP infinite mixture model with %d components' % (self.K)
+    	
   def calc_local_params( self, Data, LP ):
     ''' 
     '''

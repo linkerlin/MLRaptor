@@ -39,6 +39,11 @@ class ExpFamModel( object ):
     if obsModelName == 'Gaussian':
       self.obsModel   = GaussianObsCompSet( allocModel.K, allocModel.qType, obsPrior)
   
+  def print_model_info( self ):
+    print 'Allocation Model:  %s'%  (self.allocModel.to_string() )
+    print 'Obs. Data  Model:  %s'%  (self.obsModel.to_string() )
+    print 'Obs. Data  Prior:  %s'%  (self.obsModel.to_string_prior() )
+  
   def set_obs_dims( self, Data):
     self.obsModel.set_obs_dims( Data )
   

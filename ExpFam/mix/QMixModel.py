@@ -21,11 +21,14 @@ EPS = 10*np.finfo(float).eps
 
 class QMixModel( object ):
 
-  def __init__( self, K, alpha0 ):
+  def __init__( self, K, alpha0, **kwargs ):
     self.qType = 'VB'
     self.K = K
     self.alpha0 = alpha0
 
+  def to_string( self):
+    return 'Finite mixture model with %d components' % (self.K)
+    
   def calc_local_params( self, Data, LP ):
     ''' 
     '''

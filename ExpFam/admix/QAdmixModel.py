@@ -30,11 +30,14 @@ EPS = 10*np.finfo(float).eps
 
 class QAdmixModel( object ):
 
-  def __init__( self, K, alpha0 ):
+  def __init__( self, K, alpha0, **kwargs):
     self.qType = 'VB'
     self.K = K
     self.alpha0 = alpha0
 
+  def to_string( self):
+    return 'finite admixture model with %d components' % (self.K)
+    	
   def calc_local_params( self, Data, LP):
     ''' E-step
           alternate between these updates until convergence

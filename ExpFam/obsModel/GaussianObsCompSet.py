@@ -20,6 +20,12 @@ class GaussianObsCompSet( object ):
     self.qobsDistr = [None for k in xrange(K)]
     self.D = None
 
+  def to_string(self):
+    return 'Gaussian distribution'
+  
+  def to_string_prior(self):
+    return 'Gaussian-Wishart'
+
   def set_obs_dims( self, Data):
     self.D = Data['X'].shape[1]
     if self.obsPrior is not None:
