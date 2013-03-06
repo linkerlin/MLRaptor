@@ -33,7 +33,7 @@ class GaussianObsCompSet( object ):
 
   def update_obs_params_EM( self, SS, **kwargs):
     for k in xrange( self.K ):
-      self.qobsDistr[k] = GaussDistr( SS['mean'][k], SS['covar'][k]+self.min_covar )
+      self.qobsDistr[k] = GaussDistr( SS['mean'][k], SS['covar'][k]+self.min_covar*np.eye(self.D) )
   
   def update_obs_params_EM_stochastic(self, SS, rho):
     for k in xrange( self.K ):
@@ -42,7 +42,7 @@ class GaussianObsCompSet( object ):
       self.qobsDistr[k].Sigma = (1-rho)*self.qobsDistr[k].Sigma + rho*freshDistr.Sigma
              				 
   def update_obs_params_VB( self, SS, **kwargs):
-    for k in xrange( self.K ):      
+    for k in xrange( self.K ):
       postDistr = self.obsPrior.getPosteriorDistr(SS['N'][k], SS['mean'][k],SS['covar'][k] )
       self.qobsDistr[k] = postDistr
       

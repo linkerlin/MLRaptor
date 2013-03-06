@@ -44,6 +44,7 @@ class MixModel( object ):
     resp   = np.exp( lpr-lprPerItem[:,np.newaxis] ) 
     LP['resp'] = resp
     LP['evidence'] = lprPerItem.sum()
+    assert np.allclose( np.sum(resp,axis=1), 1.0 )
     return LP
 
   def calc_evidence( self, Data, SS, LP ):

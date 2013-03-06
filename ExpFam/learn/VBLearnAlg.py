@@ -70,9 +70,9 @@ class VBLearnAlg( LearnAlg.LearnAlg ):
 
   def save_state( self, iterid, evBound ):
     np.set_printoptions( linewidth=120, precision=2, suppress=True)
-    if iterid % 50 == 0:
-      print self.expfamModel.obsModel.qobsDistr[0].m  
-      print self.expfamModel.obsModel.qobsDistr[1].m  
-      print self.expfamModel.obsModel.qobsDistr[2].m  
-    pass
+    #pass
+    if iterid % 5 == 0:
+      print self.expfamModel.obsModel.qobsDistr[0].muD.m
+      print self.expfamModel.obsModel.qobsDistr[1].muD.m
+      print self.expfamModel.obsModel.qobsDistr[2].muD.m
 
