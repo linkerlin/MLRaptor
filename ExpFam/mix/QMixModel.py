@@ -34,11 +34,9 @@ class QMixModel( object ):
     '''
     lpr = self.Elogw + LP['E_log_soft_ev']
     lprPerItem = logsumexp( lpr, axis=1 )
-    resp   = np.exp( lpr-lprPerItem[:,np.newaxis] ) 
+    resp   = np.exp( lpr-lprPerItem[:,np.newaxis] )
     LP['resp'] = resp
     return LP
-    
-
            
   def get_global_suff_stats( self, Data, SS, LP ):
     ''' 

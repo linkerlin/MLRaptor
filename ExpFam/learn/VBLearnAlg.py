@@ -11,7 +11,7 @@ import LearnAlg
 class VBLearnAlg( LearnAlg.LearnAlg ):
 
   def __init__( self, expfamModel, **kwargs ):
-    super(VBLearnAlg, self).__init__( **kwargs )
+    super( type(self), self).__init__( **kwargs )
     self.expfamModel = expfamModel
 
   def init_params( self, Data, **kwargs):
@@ -70,9 +70,8 @@ class VBLearnAlg( LearnAlg.LearnAlg ):
 
   def save_state( self, iterid, evBound ):
     np.set_printoptions( linewidth=120, precision=2, suppress=True)
-    #pass
-    if iterid % 5 == 0:
-      print self.expfamModel.obsModel.qobsDistr[0].muD.m
-      print self.expfamModel.obsModel.qobsDistr[1].muD.m
-      print self.expfamModel.obsModel.qobsDistr[2].muD.m
+    #if iterid % 5 == 0:
+    #  print self.expfamModel.obsModel.qobsDistr[0].Ephi
+    #  print self.expfamModel.obsModel.qobsDistr[1].Ephi
+    #  print self.expfamModel.obsModel.qobsDistr[2].Ephi
 

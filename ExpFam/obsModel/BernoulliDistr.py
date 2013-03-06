@@ -19,31 +19,39 @@ class BernoulliDistr(object):
     print self.phi
 
   def __init__(self, phi=None):
+    if phi is None:
+      self.phi = None
+      return
     self.phi   = np.asarray(phi)
     self.D = self.phi.size
+    self.set_helpers()
 
-    self.logphi = np.log(phi)
-    self.log1mphi = np.log(1-phi)
+  def set_dims(self, D ):
+    self.phi = np.ones( D )
+    self.D = D
+    self.set_helpers()
     
-  def getMean( self ):
-    return self.phi  
+  def set_helpers( self):
+    self.logphi = np.log( self.phi)
+    self.log1mphi = np.log(1-self.phi)
     
-  def getMAP( self ):
-    return np.asarray( self.phi > 0.5, dtype=self.phi.dtype )
-    
-  def getPosteriorParams( self, SS, k ):
-    return BernoulliDistr( phi=SS['countvec'][k] )
-    
-  def logNormConst( self ):
-    '''Calculate log normalization constant of self
+  def get_log_norm_const( self ):
+    '''Calculate log normalization constant
     '''
     return 0.0
 
   def log_pdf( self, X ):
     if type(X) is dict:
       X = X['X']
-    return X*self.logphi + (1-X)*self.log1mphi 
+    return np.sum( X*self.logphi + (1-X)*self.log1mphi, axis=1)
 
+  ###########################################  Useful for inspecting
+  def getMean( self ):
+    return self.phi  
+    
+  def getMAP( self ):
+    return np.asarray( self.phi > 0.5, dtype=self.phi.dtype )
+    
 ###############################################################################
 def np2flatstr( X, fmt='% .6f' ):
   return ' '.join( [fmt % x for x in X.flatten() ] )  
