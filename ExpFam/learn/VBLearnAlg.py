@@ -64,14 +64,6 @@ class VBLearnAlg( LearnAlg.LearnAlg ):
       prevBound = evBound
 
     #Finally, save, print and exit 
-    self.save_state(iterid, evBound) 
+    self.save_state(iterid, evBound, doFinal=True) 
     self.print_state(iterid, evBound, doFinal=True, status=status)
     return LP
-
-  def save_state( self, iterid, evBound ):
-    np.set_printoptions( linewidth=120, precision=2, suppress=True)
-    #if iterid % 5 == 0:
-    #  print self.expfamModel.obsModel.qobsDistr[0].Ephi
-    #  print self.expfamModel.obsModel.qobsDistr[1].Ephi
-    #  print self.expfamModel.obsModel.qobsDistr[2].Ephi
-

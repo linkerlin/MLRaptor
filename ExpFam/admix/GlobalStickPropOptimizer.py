@@ -56,13 +56,18 @@ def gradneglogp( v, G, logpiMat, alpha0, gamma ):
 
   return -1.0*gradvec
 
-def get_best_stick_prop_point_est( K, G, Elogw, alpha0, gamma, LB=1e-7, Ntrial=5):
+def get_best_stick_prop_point_est( K, G, Elogw, alpha0, gamma, vinitIN=None, LB=1e-7, Ntrial=5):
   objfunc = lambda v: neglogp( v, G, Elogw, alpha0, gamma)
   objgrad = lambda v: gradneglogp( v, G, Elogw, alpha0, gamma)
  
   Bounds = [ (LB, 1-LB) for k in xrange(K) ]
   for trial in xrange(Ntrial):
-    vinit = np.random.rand( K )
+    if vinitIN is None:
+      vinit = np.random.rand( K )
+    else:
+      vinit = 0.0001*np.random.randn(K) + vinitIN
+      vinit = np.maximum( vinit, LB)
+      vinit = np.minimum( vinit, 1-LB)
     finit = objfunc(vinit)
     v,f,d = scipy.optimize.fmin_l_bfgs_b( objfunc, x0=vinit, fprime=objgrad, bounds=Bounds)
     if check_bounds( v, f, finit, LB):

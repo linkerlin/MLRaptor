@@ -16,6 +16,8 @@ import numpy as np
 import scipy.linalg
 from scipy.special import gammaln, digamma
 
+from ..util.MLUtil import np2flatstr, flatstr2np
+
 LOGPI = np.log(np.pi)
 LOGTWO = np.log(2.00)
 LOGTWOPI = np.log( 2.0*np.pi )
@@ -23,8 +25,7 @@ LOGTWOPI = np.log( 2.0*np.pi )
 EPS = 10*np.finfo(float).eps
 
 def MVgammaln( x, D ):
-  return 0.25*D*(D-1)*LOGPI \
-          + gammaln( 0.5*(x+1 - np.arange(1,D+1)) ).sum()
+  return 0.25*D*(D-1)*LOGPI + gammaln( 0.5*(x+1 - np.arange(1,D+1)) ).sum()
 
 def MVdigamma( x, D ):
   return digamma( 0.5*( x+1 - np.arange(1,D+1)) ).sum()
@@ -49,7 +50,7 @@ class WishartDistr( object ):
     self.set_helper_params()
     
   def set_helper_params(self):
-    self.cholinvW = scipy.linalg.cholesky( self.invW , lower=True )
+    self.cholinvW = scipy.linalg.cholesky(self.invW , lower=True)
     self.logdetW  = -2.0*np.sum( np.log( np.diag( self.cholinvW ) )  )
 
   ########################################## Accessors
@@ -59,10 +60,27 @@ class WishartDistr( object ):
   def E_logdetLam( self ):
     return self.logdetW + self.D*LOGTWO + MVdigamma(self.v, self.D)
 
+  #######################################################  To/From String
+  def from_string( self, mystr ):
+    myvec = flatstr2np(  mystr )
+    self.D = myvec[0]
+    self.v = myvec[1]
+    self.invW = myvec[2:]
+    self.invW = np.reshape( self.invW, (self.D, self.D) )
+
+  def to_string( self ):
+    return np2flatstr( np.hstack([self.D,self.v]) ) + np2flatstr( self.invW )
+
   ########################################## Posterior calc
+  def rho_update( self, rho, newWishDistr ):
+    self.v = rho*newWishDistr.v + (1-rho)*self.v
+    self.invW = rho*newWishDistr.invW + (1-rho)*self.invW
+    self.set_helper_params()
+
   def getPosteriorDistr( self, EN, Ex, ExxT, Emu, Ecov ):
     v    = self.v + EN
-    invW = self.invW + ExxT - 2*np.outer(Ex, Emu) + EN*np.outer(Emu,Emu) + EN*Ecov
+    xmT  = np.outer(Ex, Emu)
+    invW = self.invW + ExxT -xmT - xmT.T + EN*np.outer(Emu,Emu) + EN*Ecov
     return WishartDistr( v, invW )
 
   def get_log_norm_const( self ):
@@ -94,6 +112,10 @@ class WishartDistr( object ):
     try:
       U = scipy.linalg.cholesky( S , lower=True )
     except scipy.linalg.LinAlgError:
-      U = scipy.linalg.cholesky( S + EPS*np.eye( self.D), lower=True ) 
+      try:
+        U = scipy.linalg.cholesky( S + 1e-13*np.eye( self.D), lower=True )
+      except Exception:
+        print S
+        U = scipy.linalg.cholesky( S, lower=True)
     Q = scipy.linalg.solve_triangular( self.cholinvW, U, lower=True)
     return self.v * np.sum(Q**2)

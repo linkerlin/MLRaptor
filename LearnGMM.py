@@ -58,7 +58,7 @@ def main():
     Parser = argparse.ArgumentParser()
     Parser.add_argument( 'datagenModule', type=str )
     Parser.add_argument( 'algName', type=str )
-    Parser.add_argument( 'modelName', type=str )
+    #TODO:Parser.add_argument( 'modelName', type=str )
 
     Parser.add_argument( '-K', '--K', type=int, default=3 )
 
