@@ -1,0 +1,34 @@
+STANDARD PROBLEM
+----------
+resp : 250000 x 100
+X    : 250000 x  64
+
+compute resp'*X
+
+MATLAB SINGLE/MULTI THREAD MATTERS
+-----------
+Matlab normal:  ~0.17 sec
+Matlab -singleCompThread:  ~0.28 sec
+
+MATLAB PASSING TRANSPOSE TO FUNCTION MATTERS
+-----------
+MyProd = @(X,Y)  X*Y;
+>> MyProd(resp',X)   takes 0.30 sec (.41 sec SINGLE THREAD)
+>> MyProd(respT,X)   takes 0.18 sec (.28 sec SINGLE THREAD)
+
+matlab must store the transposed matrix, costs significant if matrix is big (extra ~.12 sec here)
+
+doesn't seem to matter in python (pass by ref works!)
+
+
+MEX COMPILATION MATTERS
+-----------
+*BETTER COMPILER: g++-mp-4.7
+mex CXXOPTIMFLAGS="-O3 -DNDEBUG" MatProdMEX.cpp -I/src/eigen/ CXX="g++-mp-4.7" CXXFLAGS=""
+
+*DEFAULT COMPILER: g++
+mex CXXOPTIMFLAGS="-O3 -DNDEBUG" MatProdMEX.cpp -I/src/eigen/ 
+
+Slight noticeable bump in performance (~10%).
+
+From 0.33 sec to 0.30 sec, using MatProdMEX on my macbook
