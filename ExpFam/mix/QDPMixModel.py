@@ -30,7 +30,7 @@
 
 import numpy as np
 from scipy.special import digamma, gammaln
-from ..util.MLUtil import logsumexp
+from ..util.MLUtil import logsumexp, np2flatstr, flatstr2np
 
 EPS = 1e-13
 LOGPI = np.log(np.pi)
@@ -51,8 +51,11 @@ class QDPMixModel( object ):
     self.qalpha1 = np.zeros( K )
     self.qalpha0 = np.zeros( K )
   
-  def to_string( self):
+  def get_info_string( self):
     return 'DP infinite mixture model with %d components' % (self.K)
+
+  def to_string( self ):
+    return np2flatstr( self.qalpha0 ) + np2flatstr( self.qalpha1 )
     	
   def calc_local_params( self, Data, LP ):
     ''' 
@@ -67,16 +70,20 @@ class QDPMixModel( object ):
     ''' 
     '''
     SS['N'] = np.sum( LP['resp'], axis=0 )
+    SS['Nall'] = SS['N'].sum()
     return SS
 
-  def update_global_params( self, SS, rho=None ):
+  def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs ):
     '''
     '''
-    qalpha1 = self.alpha1 + SS['N']
+    ampF = 1
+    if Ntotal is not None:
+      ampF = Ntotal/SS['Nall']
+    qalpha1 = self.alpha1 + ampF*SS['N']
     qalpha0 = self.alpha0*np.ones( self.K )
-    qalpha0[:-1] += SS['N'][::-1].cumsum()[::-1][1:]
+    qalpha0[:-1] += ampF*SS['N'][::-1].cumsum()[::-1][1:]
     
-    if rho is None:
+    if rho is None or rho==1:
       self.qalpha1 = qalpha1
       self.qalpha0 = qalpha0
     else:

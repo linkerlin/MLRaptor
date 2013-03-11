@@ -17,10 +17,12 @@ class BernObsCompSet( object ):
     self.D = None
 
   def to_string(self):
-    return '%d-dim Bernoulli distribution' % (self.D)
+    return 'Bernoulli distribution'
   
   def to_string_prior(self):
-    return '%d-dim Beta distribution' % (self.D)
+    if self.obsPrior is None:
+      return 'None'
+    return 'Beta distr'
 
   def set_obs_dims( self, Data):
     self.D = Data['X'].shape[1]
@@ -42,7 +44,7 @@ class BernObsCompSet( object ):
 
   ################################################################## Param updates
 
-  def update_global_params( self, SS, rho=None, Ntotal=None):
+  def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs):
     ''' M-step update
     '''
     if self.qType == 'EM':
@@ -60,6 +62,17 @@ class BernObsCompSet( object ):
     for k in xrange( self.K ):      
       self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['N'][k], SS['count'][k] )
 
+  def update_obs_params_VB_stochastic( self, SS, rho, Ntotal, **kwargs):
+    if Ntotal is None:
+      ampF = 1
+    else:
+      ampF = Ntotal/SS['Nall']
+    for k in xrange( self.K ):
+      postDistr = self.obsPrior.getPosteriorDistr( ampF*SS['N'][k], ampF*SS['count'][k] )
+      if self.qobsDistr[k] is None:
+        self.qobsDistr[k] = postDistr
+      else:
+        self.qobsDistr[k].rho_update( rho, postDistr )
 
   def update_obs_params_EM( self, SS, **kwargs):
     for k in xrange( self.K ):      

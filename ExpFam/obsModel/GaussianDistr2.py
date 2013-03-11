@@ -12,6 +12,8 @@
 import numpy as np
 import scipy.linalg
 
+from ..util.MLUtil import np2flatstr, flatstr2np
+
 LOGPI = np.log(np.pi)
 LOGTWO = np.log(2.00)
 LOGTWOPI = np.log( 2.0*np.pi )
@@ -46,6 +48,27 @@ class GaussianDistr2( object ):
     self.logdetL = 2.0*np.sum( np.log( np.diag( self.cholL ) )  )
     self.invL = np.linalg.solve( self.L, np.eye(self.D) )
 
+  #######################################################  To/From String
+  def from_string( self, mystr ):
+    myvec = flatstr2np(  mystr )
+    self.D = myvec[0]
+    self.m = myvec[1:self.D+1]
+    self.L = myvec[self.D+1:]
+    self.L = np.reshape( self.L, (self.D, self.D) )
+
+  def to_string( self ):
+    return np2flatstr( np.hstack([self.D,self.m]) ) + np2flatstr( self.L )
+
+  #######################################################
+  def get_natural_params( self ):
+    eta = self.L, np.dot(self.L,self.m)
+    return eta 
+
+  def set_natural_params( self, eta ):
+    L, Lm = eta
+    self.L = L
+    self.m = np.linalg.solve( L, Lm) # invL*L*m = m
+
   ########################################## Accessors
   def get_mean(self):
     return self.m
@@ -58,10 +81,19 @@ class GaussianDistr2( object ):
       return self.invL
 
   ########################################## Posterior calc
+  def rho_update( self, rho, newGaussDistr ):
+    etaCUR = self.get_natural_params()
+    etaSTAR = newGaussDistr.get_natural_params()
+    etaNEW = list(etaCUR)
+    for i in xrange(len(etaCUR)):
+      etaNEW[i] = rho*etaSTAR[i] + (1-rho)*etaCUR[i]
+    self.set_natural_params( etaNEW )
+    self.set_helper_params()
+
   def getPosteriorDistr( self, EN, Esum, ELam ):
     L = self.L + EN*ELam
-    m = np.dot(self.L,self.m) + np.dot( ELam, Esum )
-    m = np.linalg.solve( L, m )
+    Lm = np.dot(self.L,self.m) + np.dot( ELam, Esum )
+    m = np.linalg.solve( L, Lm )
     return GaussianDistr2( m, L )
 
   def get_log_norm_const( self ):

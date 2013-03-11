@@ -15,7 +15,7 @@
 
 import numpy as np
 from scipy.special import gammaln, digamma
-from ..util.MLUtil import logsumexp
+from ..util.MLUtil import logsumexp, np2flatstr, flatstr2np
 
 EPS = 10*np.finfo(float).eps
 
@@ -26,7 +26,13 @@ class QMixModel( object ):
     self.K = K
     self.alpha0 = alpha0
 
-  def to_string( self):
+  def from_string(self, alphastr):
+    self.alpha = flatstr2np( alphastr )
+
+  def to_string(self):
+    return np2flatstr( self.alpha )
+    
+  def get_info_string( self):
     return 'Finite mixture model with %d components' % (self.K)
     
   def calc_local_params( self, Data, LP ):
@@ -45,17 +51,17 @@ class QMixModel( object ):
     SS['Nall'] = SS['N'].sum()
     return SS
     
-  def update_global_params( self, SS, rho=None, Ntotal=None ):
+  def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs ):
     '''
     '''
-    if rho is None:
-      self.alpha   = self.alpha0 + SS['N']
+    if Ntotal is None:
+      ampF = 1
     else:
-      if Ntotal is None:
-        ampF = 1
-      else:
-        ampF = Ntotal/SS['Nall']
-      alphNew = self.alpha0 + ampF*SS['N']
+      ampF = Ntotal/SS['Nall']
+    alphNew = self.alpha0 + ampF*SS['N']
+    if rho is None or rho==1:
+      self.alpha   = alphNew
+    else:
       self.alpha   = rho*alphNew + (1-rho)*self.alpha
     self.Elogw      = digamma( self.alpha ) - digamma( self.alpha.sum() )
     

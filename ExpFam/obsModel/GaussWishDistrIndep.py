@@ -32,9 +32,10 @@ class GaussWishDistrIndep( object ):
   def E_log_pdf( self, X):
     '''
       E[ log p(X | this distribution )], up to prop. constant
+      Returns N-dim vector, one entry per row of X
     '''
-    logp = 0.5*self.LamD.E_logdetLam() \
-          -0.5*self.E_dist_mahalanobis( X )
+    logp = 0.5*self.LamD.E_logdetLam() 
+    logp -= 0.5*self.E_dist_mahalanobis( X )
     return logp
 
   def E_dist_mahalanobis( self, X ):
@@ -46,12 +47,10 @@ class GaussWishDistrIndep( object ):
     Dist  = self.LamD.E_dist_mahalanobis( Xdiff.T )
     return Dist + self.LamD.E_traceLambda(self.muD.invL)
 
-  def getPosteriorDistr( self, N, x, xxT):
+  def getPosteriorDistr( self, N, x, xxT, ELam ):
     '''
     '''
-
-    ELam = self.LamD.E_Lam()
-    for rep in xrange( 5 ):
+    for rep in xrange( 25 ):
       muD  = self.muD.getPosteriorDistr( N, x, ELam )
       LamD = self.LamD.getPosteriorDistr( N, x, xxT, muD.m, muD.get_covar() )
       if rep > 0 and np.allclose( ELam, prev ):

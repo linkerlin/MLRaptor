@@ -22,7 +22,7 @@
    Pattern Recognition and Machine Learning, by C. Bishop.
 '''
 import numpy as np
-from ..util.MLUtil import logsumexp
+from ..util.MLUtil import logsumexp, np2flatstr, flatstr2np
 
 class MixModel( object ):
 
@@ -33,9 +33,12 @@ class MixModel( object ):
     self.w = np.zeros( K )
     # obs distr specfics left up to sub-classes
 
-  def to_string( self):
+  def get_info_string( self):
     return 'Finite mixture model with %d components' % (self.K)
     
+  def to_string( self ):
+    return np2flatstr( self.w )
+
   def calc_local_params( self, Data, LP ):
     ''' 
     '''

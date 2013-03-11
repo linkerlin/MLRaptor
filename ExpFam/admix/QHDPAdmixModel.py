@@ -19,7 +19,7 @@
 
 import numpy as np
 from scipy.special import gammaln, digamma
-from ..util.MLUtil import logsumexp
+from ..util.MLUtil import logsumexp, np2flatstr, flatstr2np
 
 import GlobalStickPropOptimizer
 
@@ -39,9 +39,12 @@ class QHDPAdmixModel( object ):
     self.vstar = self.alpha1/(self.alpha1+self.alpha0) *np.ones( K )
     self.Ebeta = self.get_beta()
 
-  def to_string( self):
+  def get_info_string( self):
     return 'HDP infinite admixture model with %d components' % (self.K)
         
+  def to_string( self ):
+    return np2flatstr( self.vstar )
+
   def calc_local_params( self, Data, LP):
     ''' E-step
           alternate between these updates until convergence
@@ -93,6 +96,7 @@ class QHDPAdmixModel( object ):
     '''
     SS = dict()
     SS['N'] = np.sum( LP['resp'], axis=0 )
+    SS['Nall'] = SS['N'].sum()
     try:
       SS['Elogw'] = np.sum( LP['Elogw_perGroup'], axis=0 )
     except KeyError:
@@ -109,12 +113,18 @@ class QHDPAdmixModel( object ):
     '''  
     return SS
     
-  def update_global_params( self, SS, rho=None ):
+  def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs ):
     ''' Run optimization to find best global stick-proportions v
     '''
-    args = (SS['G'], SS['Elogw'], self.alpha0, self.gamma)
-    self.vstar = GlobalStickPropOptimizer.get_best_stick_prop_point_est(self.K, *args)
+    ampF = 1 #no matter what!
+    args = ( SS['G'], SS['Elogw'], self.alpha0, self.gamma)
+    vstar = GlobalStickPropOptimizer.get_best_stick_prop_point_est(self.K, *args, vinitIN=self.vstar)
+    if rho is None or rho == 1:
+      self.vstar = vstar
+    else:
+      self.vstar = rho*vstar + (1-rho)*self.vstar
     self.Ebeta = self.get_beta()
+    print self.Ebeta
     
   def get_beta( self):
     v = np.hstack( [self.vstar, 1] )

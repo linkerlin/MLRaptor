@@ -35,9 +35,14 @@ class QAdmixModel( object ):
     self.K = K
     self.alpha0 = alpha0
 
+  def get_info_string( self):
+    return 'Finite admixture model with %d components' % (self.K)
+
   def to_string( self):
-    return 'finite admixture model with %d components' % (self.K)
-    	
+    ''' No global parameters! So just return blank line
+    '''
+    return ''  
+    	    	
   def calc_local_params( self, Data, LP):
     ''' E-step
           alternate between these updates until convergence
@@ -94,9 +99,10 @@ class QAdmixModel( object ):
     '''
     SS = dict()
     SS['N'] = np.sum( LP['resp'], axis=0 )
+    SS['Nall'] = SS['N'].sum()
     return SS
     
-  def update_global_params( self, SS, rho=None ):
+  def update_global_params( self, SS, rho=None, **kwargs ):
     '''
     '''
     pass

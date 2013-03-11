@@ -124,7 +124,6 @@ class GaussianObsCompSet( object ):
        Bishop PRML eq. 10.71
     '''
     lpX = -self.D*LOGTWOPI*np.ones( self.K )
-    dist = np.zeros( self.K)
     for k in range( self.K ):
       lpX[k] += self.qobsDistr[k].ElogdetLam - self.D/self.qobsDistr[k].kappa \
                 - self.qobsDistr[k].dF* self.qobsDistr[k].traceW( SS['covar'][k] )  \

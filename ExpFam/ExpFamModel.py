@@ -38,15 +38,22 @@ class ExpFamModel( object ):
     self.K     = self.allocModel.K
     if type( obsModelName ) == str:
       if obsModelName == 'Gaussian':
-        self.obsModel   = GaussianObsCompSet( allocModel.K, allocModel.qType, obsPrior)
+        self.obsModel   = GaussObsCompSet2( allocModel.K, allocModel.qType, obsPrior)
+      if obsModelName == 'Bernoulli':
+        self.obsModel   = BernObsCompSet( allocModel.K, allocModel.qType, obsPrior)
     else:
       self.obsModel = obsModelName
   
   def print_model_info( self ):
-    print 'Allocation Model:  %s'%  (self.allocModel.to_string() )
-    print 'Obs. Data  Model:  %s'%  (self.obsModel.to_string() )
-    print 'Obs. Data  Prior:  %s'%  (self.obsModel.to_string_prior() )
+    print 'Allocation Model:  %s'%  (self.allocModel.get_info_string() )
+    print 'Obs. Data  Model:  %s'%  (self.obsModel.get_info_string() )
+    print 'Obs. Data  Prior:  %s'%  (self.obsModel.get_info_string_prior() )
   
+  def save_params(self, fname):
+    with open( fname+'AllocModel.dat', 'a') as f:
+      f.write( self.allocModel.to_string()+'\n' )
+    self.obsModel.save_params(fname)
+
   def set_obs_dims( self, Data):
     self.obsModel.set_obs_dims( Data )
   

@@ -42,6 +42,11 @@ class BetaDistr(object):
     self.Elog1mphi = digamma(self.b) - DENOM
     self.Ephi = self.a/(self.a+self.b)
    
+  def rho_update( self, rho, starDistr):
+    self.a = rho*starDistr.a + (1-rho)*self.a
+    self.b = rho*starDistr.b + (1-rho)*self.b
+    self.set_helpers()
+
   def getPosteriorDistr( self, N, CountON ):
     aPost = self.a +  CountON
     bPost = self.b +  N-CountON

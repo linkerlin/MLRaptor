@@ -1,3 +1,12 @@
+#! /home/mhughes/mypy/epd64/bin/python
+#$ -S /home/mhughes/mypy/epd64/bin/python
+# ------ set working directory
+#$ -cwd 
+# ------ attach job number
+#$ -j n
+# ------ send to particular queue
+#$ -o ../logs/$JOB_ID.$TASK_ID.out
+#$ -e ../logs/$JOB_ID.$TASK_ID.err
 '''
  User-facing executable script for learning Exp Family Models
   with a variety of possible inference algorithms, such as
@@ -35,21 +44,90 @@
       --K       : # mixture components to use 
 '''
 import argparse
-
 import os.path
 import sys
-from distutils.dir_util import mkpath  #mk_dir p functionality
-
+from distutils.dir_util import mkpath  #mk_dir functionality
 import numpy as np
-#import sklearn.mixture
+
+#############################################################
+#             Code to Make Grid IO Possible
+#############################################################
+class MyLogFile(object):
+  def __init__(self, fileobj):
+    # reopen stdout file descriptor with write mode
+    # and 0 as the buffer size (unbuffered)
+    self.file = os.fdopen( fileobj.fileno(), 'w', 0)  
+
+  def flush( self ):
+    self.file.flush()
+
+  def __getattr__(self, attr):
+    return getattr( self.file, attr )
+
+  def write( self, data):
+    self.file.write( data )
+    self.file.flush()
+    os.fsync( self.file.fileno() )
+ 
+  def fileno( self ):
+    return self.file.fileno()
+
+  def close( self ):
+    self.file.close()
+
+def clear_folder( savefolder, prefix=None ):
+  #print 'Clearing %s' % (savefolder)
+  for the_file in os.listdir( savefolder ):
+    if prefix is not None:
+      if not the_file.startswith(prefix):
+        continue
+    file_path = os.path.join( savefolder, the_file)
+    if os.path.isfile(file_path) or os.path.islink(file_path):
+      os.unlink(file_path)
+
+
+jobID = 1
+taskID = 1
+
+if not sys.stdout.isatty():
+  sys.stdout = MyLogFile( sys.stdout )
+  sys.stderr = MyLogFile( sys.stderr )
+  os.chdir('..')
+  sys.path[0] = os.getcwd()
+  print 'This is LearnExpFam.py'
+  print 'Python version %d.%d.%d' % sys.version_info[ :3]
+  print 'Numpy version %s' % (np.__version__)
+  print 'Cur Dir:', os.getcwd()
+  print 'Local search path:', sys.path[0]
+  try:
+    jobID = int(  os.getenv( 'JOB_ID' ) )
+    taskID = int( os.getenv( 'SGE_TASK_ID' ) )
+    LOGFILEPREFIX = os.path.join( os.getcwd(), 'logs', str(jobID)+'.'+str(taskID) )
+  except TypeError:
+    pass
+  print 'JobID  %d' % (jobID )
+  print 'TaskID %d' % (taskID )
+  print '---------------------------------------------'
+
+#############################################################
+#             Code to Parse Arguments
+#############################################################
 
 import ExpFam as ef
+AllocModelConstructor = {'MixModel': ef.mix.MixModel, \
+                         'QMixModel': ef.mix.QMixModel, \
+                         'QDPMixModel': ef.mix.QDPMixModel, \
+                         'QAdmixModel': ef.admix.QAdmixModel, \
+                         'QHDPAdmixModel': ef.admix.QHDPAdmixModel,\
+                         'QHDPAdmix': ef.admix.QHDPAdmixModel}
 
-# reopen stdout file descriptor with write mode
-# and 0 as the buffer size (unbuffered)
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+PriorConstr = {'Gaussian': ef.obsModel.GaussWishDistrIndep, \
+               'Gauss': ef.obsModel.GaussWishDistrIndep, \
+               'Normal': ef.obsModel.GaussWishDistrIndep, \
+               'Bern': ef.obsModel.BetaDistr, \
+               'Bernoulli': ef.obsModel.BetaDistr}
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument( 'datagenModule', type=str )
     parser.add_argument( 'modelName', type=str )
@@ -66,6 +144,8 @@ def main():
     lgroup.add_argument('--dobatch', action='store_true',default=True)
     lgroup.add_argument('--doonline', action='store_true')
 
+    parser.add_argument('--dotest', action='store_true',default=False)
+
     # Batch learning args
     parser.add_argument( '--nIter', type=int, default=100 )
 
@@ -78,14 +158,16 @@ def main():
 
     # Generic args
     parser.add_argument( '--jobname', type=str, default='defaultjob' )
-    parser.add_argument( '--taskid', type=int, default=1 )
+    parser.add_argument( '--taskid', type=int, default=taskID )
     parser.add_argument( '--nTask', type=int, default=1 )
 
     parser.add_argument( '--initname', type=str, default='random' )
     parser.add_argument( '--seed', type=int, default=8675309 )    
     parser.add_argument( '--printEvery', type=int, default=5 )
     parser.add_argument( '--saveEvery', type=int, default=10 )
-    args = parser.parse_args()
+    return parser.parse_args()
+
+def main(args):
     
     modelParams = dict()
     for argName in ['K', 'alpha0', 'min_covar']:
@@ -109,10 +191,8 @@ def main():
     if 'print_data_info' in dir( datagenmod ):
       datagenmod.print_data_info()
 
-    AllocModelConstructor = {'MixModel': ef.mix.MixModel, 'QMixModel': ef.mix.QMixModel, 'QAdmixModel': ef.admix.QAdmixModel, 'QHDPAdmix': ef.admix.QHDPAdmixModel}
     am = AllocModelConstructor[ args.modelName ]( **modelParams )
 
-    PriorConstr = {'Gaussian': ef.obsModel.GaussWishDistr}
     if args.doprior or args.algName.count('VB')>0:
       obsPrior = PriorConstr[ args.obsName ]( **obsPriorParams )
     else:
@@ -121,15 +201,35 @@ def main():
     m = ef.ExpFamModel( am, args.obsName, obsPrior )
     m.print_model_info()
 
+    if args.doonline:
+      algName = 'o'+args.algName
+    else:
+      algName = args.algName
+    print 'Learn Alg:  %s' % (algName)
+
     for task in xrange( args.taskid, args.taskid+args.nTask ):    
-      basepath = os.path.join( 'results', args.algName, args.jobname, str(task) )
-      mkpath(  basepath )
-      algParams['savefilename'] = os.path.join( basepath, 'trace' )
+      ##########################################################  Config seeds and dumpfiles
       seed = hash( args.jobname+str(task) ) % np.iinfo(int).max
       algParams['seed'] = seed
-    
-      print 'Trial %2d/%d | savefile: %s | seed: %d' % (task, args.nTask, algParams['savefilename'], algParams['seed'])
 
+      basepath = os.path.join( 'results', args.datagenModule[:7], args.modelName, algName, args.jobname, str(task) )
+      mkpath(  basepath )
+      clear_folder( basepath )
+      algParams['savefilename'] = os.path.join( basepath, 'trace' )
+
+      print 'Trial %2d/%d | alg. seed: %d | data seed: %d' % (task, args.nTask, algParams['seed'], dataParams['seed'])
+      print '  savefile: %s' % (algParams['savefilename'])
+
+      if jobID > 1:
+        logpath = os.path.join( 'logs', args.datagenModule[:7], args.modelName, algName, args.jobname )
+        mkpath( logpath )
+        clear_folder( logpath, prefix=str(task) )
+        os.symlink( LOGFILEPREFIX+'.out', '%s/%d.out' % (logpath, task) )
+        os.symlink( LOGFILEPREFIX+'.err', '%s/%d.err' % (logpath, task) )
+        print '   logfile: %s' % (logpath)
+    
+
+      ##########################################################  Build Learning Alg
       if args.algName.count('EM')>0:
         if args.doonline:
           learnAlg = ef.learn.OnlineEMLearnAlg( m, **algParams )
@@ -144,15 +244,27 @@ def main():
           learnAlg = ef.learn.VBLearnAlg( m, **algParams )
         
       if args.doonline:
-        DataGen = datagenmod.minibatch_generator( **dataParams )
-        learnAlg.fit( DataGen, seed) 
+        if args.modelName.count('Admix') > 0:
+          Data = datagenmod.group_minibatch_generator( **dataParams )
+        else:
+          Data = datagenmod.minibatch_generator( **dataParams )
       else:
         if args.modelName.count('Admix') > 0:
           Data = datagenmod.get_data_by_groups( **dataParams )
         else:
           Data = datagenmod.get_data( **dataParams )
-        learnAlg.fit( Data, seed)
 
+      if args.dotest:
+        testParams = dataParams
+        testParams['seed'] += 1
+        if args.modelName.count('Admix') > 0:
+          Dtest = datagenmod.get_data_by_groups( **testParams )
+        else:
+          Dtest = datagenmod.get_data( **testParams )
+        learnAlg.fit( Data, seed, Dtest=Dtest)
+      else:
+        learnAlg.fit( Data, seed )
 
 if __name__ == '__main__':
-  main()
+  args = parse_args()
+  main(args)

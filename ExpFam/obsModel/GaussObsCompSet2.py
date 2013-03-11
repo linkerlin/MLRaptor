@@ -20,16 +20,28 @@ class GaussObsCompSet2( object ):
     self.qobsDistr = [None for k in xrange(K)]
     self.D = None
 
-  def to_string(self):
+  def get_info_string(self):
     return 'Gaussian distribution'
   
-  def to_string_prior(self):
+  def get_info_string_prior(self):
     return 'Gaussian on \mu, Wishart on \Lam'
 
   def set_obs_dims( self, Data):
     self.D = Data['X'].shape[1]
     if self.obsPrior is not None:
       self.obsPrior.set_dims( self.D )
+
+  #######################################################  To/From String
+  def save_params( self, fname ):
+    for k in xrange(self.K):
+      if self.qType == 'VB':
+        with open( fname+'ObsComp%03dMu.dat'%(k), 'a') as f:
+          f.write( self.qobsDistr[k].muD.to_string()+'\n'  )
+        with open( fname+'ObsComp%03dLam.dat'%(k), 'a') as f:
+          f.write( self.qobsDistr[k].LamD.to_string()+'\n'  )
+      else:
+        with open( fname+'ObsComp%03d.dat'%(k), 'a') as f:
+          f.write( self.qobsDistr[k].to_string()+'\n'  )
 
   ################################################################## Suff stats
   def get_global_suff_stats( self, Data, SS, LP ):
@@ -49,7 +61,7 @@ class GaussObsCompSet2( object ):
 
   ################################################################## Param updates
 
-  def update_global_params( self, SS, rho=None, Ntotal=None):
+  def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs):
     ''' M-step update
     '''
     if self.qType == 'EM':
@@ -64,11 +76,20 @@ class GaussObsCompSet2( object ):
         self.update_obs_params_VB_stochastic( SS, rho, Ntotal )
 
   def update_obs_params_VB( self, SS, **kwargs):
-    for k in xrange( self.K ):      
-      self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['N'][k], SS['x'][k],SS['xxT'][k] )
+    for k in xrange( self.K ):
+      ELam = self.obsPrior.LamD.E_Lam()
+      self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['N'][k], SS['x'][k], SS['xxT'][k], ELam )
 
   def update_obs_params_VB_stochastic( self, SS, rho, Ntotal):
-    pass   
+    ampF = Ntotal/SS['Nall']
+    for k in xrange( self.K ):
+      ELam = self.obsPrior.LamD.E_Lam()
+      postDistr = self.obsPrior.getPosteriorDistr( ampF*SS['N'][k], ampF*SS['x'][k], ampF*SS['xxT'][k], ELam )
+      if self.qobsDistr[k] is None:
+        self.qobsDistr[k] = postDistr
+      else:
+        self.qobsDistr[k].LamD.rho_update( rho, postDistr.LamD )
+        self.qobsDistr[k].muD.rho_update( rho, postDistr.muD )
 
   def update_obs_params_EM( self, SS, **kwargs):
     for k in xrange( self.K ):      
@@ -113,8 +134,7 @@ class GaussObsCompSet2( object ):
   #########################################################  Evidence Bound Fcns  
   def calc_evidence( self, Data, SS, LP):
     if self.qType == 'EM': return 0 # handled by alloc model
-    return self.E_logpX( LP, SS) \
-           + self.E_logpPhi() - self.E_logqPhi()
+    return self.E_logpX( LP, SS) + self.E_logpPhi() - self.E_logqPhi()
   
   def E_logpX( self, LP, SS ):
     ''' E_{q(Z), q(Phi)} [ log p(X) ]
@@ -126,11 +146,25 @@ class GaussObsCompSet2( object ):
       muD  = self.qobsDistr[k].muD
       lpX[k]  = 0.5*SS['N'][k]*LamD.E_logdetLam()
       lpX[k] -= 0.5*SS['N'][k]*self.D*LOGTWOPI
-      lpX[k] -= 0.5*SS['N'][k]*LamD.E_traceLambda( muD.invL )
+      lpX[k] -= 0.5*LamD.E_traceLambda( SS['N'][k]*muD.invL )
 
-      xmxmT  =  SS['xxT'][k] -2*np.outer(SS['x'][k],muD.m) + SS['N'][k]*np.outer(muD.m, muD.m)
-      lpX[k] -= 0.5*LamD.E_traceLambda( xmxmT )
-      assert lpX[k].size== 1
+      xmT = np.outer(SS['x'][k],muD.m)
+      xmxmT  =  SS['xxT'][k] - xmT - xmT.T + SS['N'][k]*np.outer(muD.m, muD.m)
+      #print  np.outer(SS['x'][k],muD.m)
+      try:
+        lpX[k] -= 0.5*LamD.E_traceLambda( xmxmT )
+      except Exception:
+        print 'SS[N]'
+        print SS['N'][k]
+        print 'E[x]'
+        print SS['x'][k]
+        print 'xxT'
+        print np.sort( np.linalg.eigvals( SS['xxT'][k] ) )[:10]
+        print SS['xxT'][k]
+        print 'xmT'
+        print np.sort( np.linalg.eigvals( xmT + xmT.T ) )[:10]
+        print xmT + xmT.T
+        raise ValueError
     return lpX.sum()
     
   def E_logpPhi( self ):

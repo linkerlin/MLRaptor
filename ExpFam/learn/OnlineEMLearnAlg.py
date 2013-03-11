@@ -55,9 +55,5 @@ class OnlineEMLearnAlg( LearnAlg.LearnAlg ):
 
   def save_state( self, iterid, evBound ):
     np.set_printoptions( linewidth=120, precision=2, suppress=True)
-    if iterid % 50 == 0:
-      print self.expfamModel.obsModel.qobsDistr[0].mu  
-      print self.expfamModel.obsModel.qobsDistr[1].mu  
-      print self.expfamModel.obsModel.qobsDistr[2].mu
     pass
 

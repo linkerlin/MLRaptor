@@ -12,6 +12,7 @@ import numpy as np
 import scipy.spatial
 import scipy.cluster
 import time
+import os
 
 class LearnAlg(object):
 
@@ -30,15 +31,25 @@ class LearnAlg(object):
     self.doVerify = doVerify
     self.rhodelay =rhodelay
     self.rhoexp   = rhoexp
-
+    
   def init_params( self, Data):
     pass
 
   def fit( self, Data):
     pass
 
-  def save_state( self, iterid, evBound ):
-    pass
+  def save_state( self, iterid, evBound, doFinal=False):
+    if iterid in self.SavedIters:
+      return      
+    mode = 'a'
+    if doFinal or ( iterid % (self.saveEvery)==0 ):
+      filename, ext = os.path.splitext( self.savefilename )
+      self.SavedIters[iterid] = True
+      with open( filename+'.iters', mode) as f:        
+        f.write( '%d\n' % (iterid) )
+      with open( filename+'.evidence', mode) as f:        
+        f.write( '%.8e\n' % (evBound) )
+      self.expfamModel.save_params( filename )
 
   ##################################################### Logging methods
   def verify_evidence(self, evBound, prevBound):
@@ -87,7 +98,7 @@ class LearnAlg(object):
       resp = self.get_random_resp( X, K, **kwargs )
     return resp
 
-  def get_kmeans_resp( self, X, K, doHard=False, seed=42):
+  def get_kmeans_resp( self, X, K, doHard=False, seed=42, **kwargs):
     ''' Kmeans initialization of cluster responsibilities.
           We run K-means algorithm on NxD data X
              and return the posterior membership probabilities to K cluster ctrs
@@ -116,7 +127,7 @@ class LearnAlg(object):
     resp = self.get_resp_from_distance_matrix( Dist, doHard )
     return resp
 
-  def get_random_resp( self, X, K, doHard=False, ctrIDs=None, seed=42):
+  def get_random_resp( self, X, K, doHard=False, ctrIDs=None, seed=42, **kwargs):
     ''' Random sampling initialization of cluster responsibilities.
            
         Params

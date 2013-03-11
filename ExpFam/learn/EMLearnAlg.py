@@ -57,10 +57,6 @@ class EMLearnAlg( LearnAlg.LearnAlg ):
       prevBound = evBound
 
     #Finally, save, print and exit 
-    self.save_state(iterid, evBound) 
+    self.save_state(iterid, evBound, True) 
     self.print_state(iterid, evBound, doFinal=True, status=status)
-
-
-  def save_state( self, iterid, evBound ):
-    pass
 
