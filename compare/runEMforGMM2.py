@@ -31,6 +31,9 @@ CONVERGE_THR = 1e-6
 MIN_COVAR    = 1e-8
 EPS          = 1e-15
 
+def dotXTX( X ):
+  return scipy.linalg.fblas.dgemm( 1.0, X.T, X.T, trans_b=True)
+
 def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument( 'datafilename' )
@@ -66,11 +69,12 @@ def init_responsibilities( X, K, seed):
   rowIDs = random.sample( xrange(N), K ) #without replacement
   mu = X[rowIDs, : ]
 
-  logResp = np.zeros( (N, K) )
+  logResp = np.zeros( (K,N) )
   for k in xrange( K ):
-    logResp[:,k] = loggausspdf( X, mu[k,:], np.eye(D) )
-  logPrPerRow = logsumexp( logResp, axis=1 )
-  Resp = np.exp( logResp - logPrPerRow[:,np.newaxis] )
+    logResp[k,:] = loggausspdf( X, mu[k,:], np.eye(D) )
+  logPrPerRow = logsumexp( logResp, axis=0 )
+  Resp = np.exp( logResp - logPrPerRow )
+  print Resp.shape
   return Resp
 
 ###################################################
@@ -81,27 +85,29 @@ def Estep(X, model):
 
   N = X.shape[0]
   K = mu.shape[0]
-  logResp = np.zeros( (N, K) )
+  logResp = np.zeros( (K,N) )
   for k in xrange( K ):
-    logResp[:,k] = loggausspdf( X, mu[k,:], Sigma[:,:,k] )
-  logResp += np.log( w )
+    logResp[k,:] = loggausspdf( X, mu[k,:], Sigma[:,:,k] )
+  logResp += np.log( w )[:,np.newaxis]
 
-  logPrPerRow = logsumexp( logResp, axis=1 )
-  Resp = np.exp( logResp - logPrPerRow[:,np.newaxis] )
+  logPrPerRow = logsumexp( logResp, axis=0 )
+  Resp = np.exp( logResp - logPrPerRow )
   return Resp, np.sum(logPrPerRow)
   
 def Mstep(X, Resp):
   N,D = X.shape
-  K = Resp.shape[1]
+  K = Resp.shape[0]
 
-  Nk = np.sum( Resp, axis=0) + EPS
+  Nk = np.sum( Resp, axis=1) + EPS
   w  = Nk/N
-  mu = np.dot( Resp.T, X ) / Nk[:,np.newaxis]
+  mu = np.dot( Resp, X ) / Nk[:,np.newaxis]
   Sigma = np.zeros( (D,D,K) )
   for k in xrange( K ):
     Xdiff = X - mu[k,:]
-    Xdiff = Xdiff * np.sqrt( Resp[:,k] )[:,np.newaxis]
-    Sigma[:,:,k] = np.dot( Xdiff.T, Xdiff) / Nk[k] + MIN_COVAR*np.eye(D)
+    Xdiff = Xdiff * np.sqrt( Resp[k,:] )[:,np.newaxis]
+    XTX = np.dot( Xdiff.T, Xdiff)
+    #XTX = dotXTX( Xdiff )
+    Sigma[:,:,k] = XTX/ Nk[k] + MIN_COVAR*np.eye(D)
   return dict( w=w, mu=mu, Sigma=Sigma )
 
 ###################################################
