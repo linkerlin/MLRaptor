@@ -1,3 +1,4 @@
+// $ LD_PRELOAD=/usr/lib/libstdc++.so.6 matlab &
 #include "Eigen/Dense"
 #include "mersenneTwister2002.c"
 #include <iostream>
@@ -15,6 +16,12 @@ typedef ArrayXd Vec;
 const int doVEC = 1;
 #else
 const int doVEC = 0;
+#endif
+
+#ifdef EIGEN_NO_DEBUG
+const int doDEBUG= 1;
+#else
+const int doDEBUG= 0;
 #endif
 
 double get_elapsed_time( clock_t cSTART, clock_t cEND) {
@@ -64,6 +71,25 @@ void select_without_replacement( int N, int K, Vec &chosenIDs) {
     }
 }
 
+void pairwise_distance( MexMat &X, MexMat &Mu, Mat &Dist ) {
+  int N = X.rows();
+  int D = X.cols();
+  int K = Mu.rows();
+
+  if ( D <= 16 ) {
+    for (int kk=0; kk<K; kk++) {
+      Dist.col(kk) = ( X.rowwise() - Mu.row(kk) ).square().rowwise().sum();
+    }    
+  } else {
+    clock_t starttime = clock();
+    Dist = -2*( X.matrix() * Mu.transpose().matrix() );
+    //cout << "X*Mu | " << get_elapsed_time( starttime, clock() ) << endl;
+  
+    starttime = clock();
+    Dist.rowwise() += Mu.square().rowwise().sum().transpose().row(0);
+    //cout << "Mu*Mu | " << get_elapsed_time( starttime, clock() ) << endl;
+  }
+}
 
 void init_Mu( MexMat &X, MexMat &Mu, char* initname ) {
 	
@@ -115,12 +141,15 @@ void calc_Mu( MexMat &X, MexMat &Mu, MexMat &Z) {
   //cout << "Mu: " << get_elapsed_time( starttime, endtime ) << " sec." << endl;
 }
 
-double assignClosest( MexMat &X, MexMat &Mu, MexMat &Z) {
+double assignClosest( MexMat &X, MexMat &Mu, MexMat &Z, Mat &Dist) {
   clock_t starttime = clock();
   double totalDist = 0;
   int minRowID;
+
+  pairwise_distance( X, Mu, Dist );
+
   for (int nn=0; nn<X.rows(); nn++) {
-    totalDist += ( Mu.rowwise() - X.row(nn)  ).square().rowwise().sum().minCoeff( &minRowID );
+    totalDist += Dist.row(nn).minCoeff( &minRowID );
     Z(nn,0) = minRowID;
   }
   clock_t endtime = clock();
@@ -129,17 +158,22 @@ double assignClosest( MexMat &X, MexMat &Mu, MexMat &Z) {
 }
 
 void run_lloyd( MexMat &X, MexMat &Mu, MexMat &Z, int Niter )  {
-  double totalDist,prevDist = 0;
-
+  double prevDist,totalDist = 0;
+  //cout << "HELLO!" << doDEBUG << endl;
+  Mat Dist = Mat::Zero( X.rows(), Mu.rows() );
+  
+  //Mu.matrix().transposeInPlace();
   for (int iter=0; iter<Niter; iter++) {
     
-    totalDist = assignClosest( X, Mu, Z );
+    totalDist = assignClosest( X, Mu, Z, Dist );
     calc_Mu( X, Mu, Z );
     if ( prevDist == totalDist ) {
       break;
     }
     prevDist = totalDist;
   }
+  //cout << "goodbye!" << endl;
+  //Mu.matrix().transposeInPlace();
 }
 
 /*

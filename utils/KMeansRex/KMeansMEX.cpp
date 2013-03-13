@@ -1,6 +1,6 @@
 #include "Eigen/Dense"
 #include "mex.h"
-#include "KMeansRex.h"
+#include "KMeansRex2.h"
 #include <iostream>
 using namespace Eigen;
 using namespace std;
@@ -13,7 +13,7 @@ typedef ArrayXd Vec;
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) 
 {
 	if (nrhs != 5 and nrhs != 4) {
-		mexErrMsgTxt("Needs 5 arguments -- Xdata (NxD), K (int), Niter (int), initname (str), seed (int) [OPTIONAL]");
+		mexErrMsgTxt("Needs 5 args -- Xdata (NxD), K (int), Niter (int), initname (str), seed (int) [OPTIONAL]");
 		return;
 	}
 

@@ -64,6 +64,21 @@ void select_without_replacement( int N, int K, Vec &chosenIDs) {
     }
 }
 
+void pairwise_distance( MexMat &X, MexMat &Mu, MexMat &Dist ) {
+  int N = X.rows()
+  int D = X.cols();
+  int K = Mu.rows();
+
+  if ( D <= 16 ) {
+    for (int kk=0; kk<K; kk++) {
+      Dist.col(kk) = ( X.rowwise() - Y.row(kk) ).square().sum();
+    }    
+  } else {
+    Dist = -2*( X.matrix() * Y.transpose().matrix() );
+    Dist.rowwise() += Mu.square().rowwise().sum().transpose().row(0);
+  }
+}
+
 
 void init_Mu( MexMat &X, MexMat &Mu, char* initname ) {
 	
@@ -115,12 +130,15 @@ void calc_Mu( MexMat &X, MexMat &Mu, MexMat &Z) {
   //cout << "Mu: " << get_elapsed_time( starttime, endtime ) << " sec." << endl;
 }
 
-double assignClosest( MexMat &X, MexMat &Mu, MexMat &Z) {
+double assignClosest( MexMat &X, MexMat &Mu, MexMat &Z, Mat &Dist) {
   clock_t starttime = clock();
   double totalDist = 0;
   int minRowID;
+
+  pairwise_distance( X, Mu, Dist );
+
   for (int nn=0; nn<X.rows(); nn++) {
-    totalDist += ( Mu.rowwise() - X.row(nn)  ).square().rowwise().sum().minCoeff( &minRowID );
+    totalDist += Dist.rowwise().minCoeff( &minRowID );
     Z(nn,0) = minRowID;
   }
   clock_t endtime = clock();
@@ -130,10 +148,11 @@ double assignClosest( MexMat &X, MexMat &Mu, MexMat &Z) {
 
 void run_lloyd( MexMat &X, MexMat &Mu, MexMat &Z, int Niter )  {
   double totalDist,prevDist = 0;
+  Mat Dist = Mat::Zeros( X.rows(), Mu.rows() );
 
   for (int iter=0; iter<Niter; iter++) {
     
-    totalDist = assignClosest( X, Mu, Z );
+    totalDist = assignClosest( X, Mu, Z, Dist );
     calc_Mu( X, Mu, Z );
     if ( prevDist == totalDist ) {
       break;
