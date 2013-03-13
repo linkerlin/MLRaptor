@@ -1,24 +1,26 @@
 '''
- Abstract class for learning algorithms for Gaussian Mixture Models. 
+ Abstract class for learning algorithms for expfam models
 
-  Simply defines some generic initialization routines, based on 
-     assigning cluster responsibilities (either hard or soft) to 
-     cluster centers either learned from data (kmeans)
-                         or selected at random from the data
+  Simply defines some generic routines for
+    ** initialization (see the init module)
+    ** saving global parameters
+    ** assessing convergence
+    ** printing progress updates to stdout
 
 Author: Mike Hughes (mike@michaelchughes.com)
 '''
 import numpy as np
-import scipy.spatial
-import scipy.cluster
 import time
 import os
 
+from ..init.GaussObsSetInitializer import GaussObsSetInitializer
+
 class LearnAlg(object):
 
-  def __init__( self, savefilename='results/GMMtrace', nIter=100, \
+  def __init__( self, savefilename='results/trace', nIter=100, \
                     initname='kmeans',  convTHR=1e-10, \
-                    printEvery=5, saveEvery=5, doVerify=False, \
+                    printEvery=5, saveEvery=5, evidenceEvery=5, \
+                    doVerify=False, \
                     rhodelay=1, rhoexp=0.6, \
                     **kwargs ):
     self.savefilename = savefilename
@@ -27,15 +29,22 @@ class LearnAlg(object):
     self.Niter = nIter
     self.printEvery = printEvery
     self.saveEvery = saveEvery
+    self.evidenceEvery = evidenceEvery
     self.SavedIters = dict()
     self.doVerify = doVerify
     self.rhodelay =rhodelay
     self.rhoexp   = rhoexp
-    
-  def init_params( self, Data):
-    pass
 
-  def fit( self, Data):
+  def init_global_params( self, Data, seed ):
+    obsType = self.expfamModel.obsModel.get_info_string()
+    if obsType.count('Gauss') > 0:
+      InitEngine = GaussObsSetInitializer( initname=self.initname, seed=seed)
+      InitEngine.init_global_params( self.expfamModel, Data )
+    elif obsType.count('Bern') > 0:
+      InitEngine = GaussObsSetInitializer( initname=self.initname, seed=seed)
+      InitEngine.init_global_params( self.expfamModel, Data )
+      
+  def fit( self, Data, seed):
     pass
 
   def save_state( self, iterid, evBound, doFinal=False):
@@ -52,6 +61,15 @@ class LearnAlg(object):
       self.expfamModel.save_params( filename )
 
   ##################################################### Logging methods
+  def calc_evidence( self, Data, SS, LP, Dtest=None):
+    if Dtest is None:
+      evBound = self.expfamModel.calc_evidence( Data, SS, LP )
+    else:
+      tLP = self.expfamModel.calc_local_params( Dtest )
+      tSS = self.expfamModel.get_global_suff_stats( Dtest, tLP)
+      evBound = self.expfamModel.calc_evidence( Dtest, tSS, tLP )
+    return evBound
+    
   def verify_evidence(self, evBound, prevBound):
     isValid = prevBound < evBound or np.allclose( prevBound, evBound, rtol=self.convTHR )
     if not isValid:
@@ -77,116 +95,3 @@ class LearnAlg(object):
       print logmsg
     if doFinal:
       print '... done. %s' % (status)
-
-  ##################################################### Initialization methods
-  def init_resp( self, X, K, **kwargs):
-    '''Initialize cluster responsibility matrix given data matrix X.
-
-      Returns
-      -------
-        resp : N x K array
-                  resp[n,k] = posterior prob. that item n belongs to cluster k
-      
-      Notes
-        -------
-          Relies on numpy's random number seed, which can be set with
-            np.random.seed( myseed )
-    '''
-    if self.initname == 'kmeans':
-      resp = self.get_kmeans_resp( X, K, **kwargs )
-    elif self.initname == 'random':
-      resp = self.get_random_resp( X, K, **kwargs )
-    return resp
-
-  def get_kmeans_resp( self, X, K, doHard=False, seed=42, **kwargs):
-    ''' Kmeans initialization of cluster responsibilities.
-          We run K-means algorithm on NxD data X
-             and return the posterior membership probabilities to K cluster ctrs
-        Params
-        -------
-          X      : N x D array
-          K      : integer number of clusters
-          doHard : boolean flag,
-                       true  -> resp[n,:] is a one-hot vector,
-                       false -> resp[n,:] contains actual probabilities
-
-        Returns
-        -------
-          resp : N x K array
-                  resp[n,k] = posterior prob. that item n belongs to cluster k
-
-        Notes
-        -------
-          Relies on numpy's random number seed, which can be set with
-            np.random.seed( myseed )
-    '''
-    N,D = X.shape
-    scipy.random.seed( seed )
-    Mu, Z = scipy.cluster.vq.kmeans2( X, K, iter=100, minit='points' )
-    Dist = scipy.spatial.distance.cdist( X, Mu )
-    resp = self.get_resp_from_distance_matrix( Dist, doHard )
-    return resp
-
-  def get_random_resp( self, X, K, doHard=False, ctrIDs=None, seed=42, **kwargs):
-    ''' Random sampling initialization of cluster responsibilities.
-           
-        Params
-        -------
-          X      : N x D array
-          K      : integer number of clusters
-          doHard : boolean flag,
-                       true  -> resp[n,:] is a one-hot vector,
-                       false -> resp[n,:] contains actual probabilities
-
-        Returns
-        -------
-          resp : N x K array
-                  resp[n,k] = posterior prob. that item n belongs to cluster k
-
-        Notes
-        -------
-          Relies on numpy's random number seed, which can be set with
-            np.random.seed( myseed )
-    '''
-    N,D = X.shape
-    if ctrIDs is None:  
-      np.random.seed( seed )
-      ctrIDs = np.random.permutation( N )[:K]
-    else:
-      assert len(ctrIDs) == K
-    Dist   = scipy.spatial.distance.cdist( X, X[ctrIDs] )
-    return self.get_resp_from_distance_matrix( Dist, doHard )
-
-
-  def get_resp_from_distance_matrix( self, Dist, doHard):
-    ''' Get posterior probabilities given a matrix that measures
-          distance from each data point to current cluster centers
-
-        Params
-        -------
-          Dist : NxK matrix
-                  Dist[n,k] = euclidean distance from X[n] to Mu[k]
-
-          doHard : boolean flag,
-                    true  -> resp[n,:] is a one-hot vector,
-                    false -> resp[n,:] contains actual probabilities
-
-        Returns
-        -------
-          resp : NxK matrix
-                  resp[n,k] \propto  exp( -Dist[ X[n], Mu[k] ]  )
-                  resp[n,:] sums to 1
-
-                  if doHard, resp is a one-hot vector where
-                    resp[n,k] = 1 iff Mu[k] is closest to X[n]
-    '''
-    N,K = Dist.shape
-    if doHard:
-      grid = np.tile( np.arange(K), (N,1) )
-      resp = np.asfarray( grid == np.argmin(Dist,axis=1)[:,np.newaxis] )
-    else:
-      # Now make an N x K matrix resp, 
-      #  where resp[n,k] \propto exp( -dist(X[n], Center[k]) )
-      logresp = -Dist + np.min(Dist,axis=1)[:,np.newaxis]
-      resp   = np.exp( logresp )        
-    return resp/resp.sum(axis=1)[:,np.newaxis]  

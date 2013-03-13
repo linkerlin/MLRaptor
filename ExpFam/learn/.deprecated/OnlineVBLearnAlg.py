@@ -1,5 +1,5 @@
 '''
- Online/Stochastic Variational Bayes learning algorithm
+ Variational bayes learning algorithm
 
 Author: Mike Hughes (mike@michaelchughes.com)
 '''
@@ -14,20 +14,42 @@ class OnlineVBLearnAlg( LearnAlg ):
     super(type(self),self).__init__( **kwargs )
     self.expfamModel = expfamModel
 
+  def init_params( self, Data, **kwargs):
+    self.expfamModel.set_obs_dims( Data )
+    LP = dict()
+    LP['resp'] = self.init_resp( Data['X'], self.expfamModel.K, **kwargs )
+    SS = self.expfamModel.get_global_suff_stats( Data, LP )
+    self.expfamModel.update_global_params( SS, **kwargs )
+    if 'GroupIDs' in Data:
+      LP = self.init_params_perGroup( Data, LP)
+    return LP
+
+  def init_params_perGroup(self, Data, LP ):
+    GroupIDs = Data['GroupIDs']
+    LP['N_perGroup'] = np.zeros( (len(GroupIDs),self.expfamModel.K)  )
+    for gg in range( len(GroupIDs) ):
+      LP['N_perGroup'][gg] = np.sum( LP['resp'][ GroupIDs[gg] ], axis=0 )
+    return LP
+
   def fit( self, DataGenerator, seed, Ntotal=10000, Dtest=None ):
     self.start_time = time.time()
     rho = 1.0
     tLP =None
     for iterid, Dchunk in enumerate(DataGenerator):
       if iterid==0:
-        self.init_global_params( Dchunk, seed )
+        LP = self.init_params( Dchunk, Ntotal=Ntotal, rho=1.0, seed=seed )
       else:
         self.expfamModel.update_global_params( SS, rho, Ntotal=Ntotal )
 
       LP = self.expfamModel.calc_local_params( Dchunk )
       SS = self.expfamModel.get_global_suff_stats( Dchunk, LP )
 
-      evBound = self.calc_evidence( Dchunk, SS, LP, Dtest )
+      if Dtest is None:
+        evBound = self.expfamModel.calc_evidence( Dchunk, SS, LP )
+      else:
+      	tLP = self.expfamModel.calc_local_params( Dtest )
+      	tSS = self.expfamModel.get_global_suff_stats( Dtest, tLP)
+      	evBound = self.expfamModel.calc_evidence( Dtest, tSS, tLP )
       
       rho = ( iterid + self.rhodelay )**(-1*self.rhoexp)
 
@@ -43,4 +65,5 @@ class OnlineVBLearnAlg( LearnAlg ):
       return LP
     except UnboundLocalError:
       print 'No iterations performed.  Perhaps provided DataGen empty. Rebuild DataGen and try again.'
+
 

@@ -6,6 +6,15 @@ def flatstr2np( xvecstr ):
 def np2flatstr( X, fmt="% .6f" ):
   return ' '.join( [fmt%(x) for x in X.flatten() ] )  
 
+def logsoftev2softev( logSoftEv, axis=1):
+  lognormC = np.max( logSoftEv, axis)
+  if axis==0:
+    logSoftEv = logSoftEv - lognormC[np.newaxis,:]
+  elif axis==1:
+    logSoftEv = logSoftEv - lognormC[:,np.newaxis]
+  SoftEv = np.exp( logSoftEv )
+  return SoftEv, lognormC
+
 def logsumexp( logA, axis=None):
   logA = np.asarray( logA )
 

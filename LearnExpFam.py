@@ -20,8 +20,11 @@
   To run EM for a 3-component GMM on easy toy data, do
   >> python LearnExpFam.py EasyToyGMMData MixModel Gaussian EM --K=3
 
-  To run Variation Bayes on the same data, do
-  >> python LearnExpFam.py EasyToyGMMData MixModel Gaussian EM --K=3
+  To run Variation Bayes on the same data using more components, do
+  >> python LearnExpFam.py EasyToyGMMData MixModel Gaussian VB --K=10
+ 
+  To run Variational Bayes on some simple binary toy data,
+  >> python LearnExpFam.py EasyToyBernData MixModel Bernoulli VB --K=5
  
   Usage
   -------
@@ -37,16 +40,20 @@
       EM : expectation maximization
       VB : variational bayes
 
-  [options]  includes
+  [options]  includes these and more
       --jobname : string name of the current experiment
       --nTask   : # separate initializations to try
       --nIter   : # iterations per task
       --K       : # mixture components to use 
+      
+      --saveEvery : # iters between saving global model params to disk
+      --printEvery: # iters between printing progress update to stdout
 '''
+from distutils.dir_util import mkpath  #mk_dir functionality
 import argparse
 import os.path
 import sys
-from distutils.dir_util import mkpath  #mk_dir functionality
+
 import numpy as np
 
 #############################################################
@@ -113,13 +120,13 @@ if not sys.stdout.isatty():
 #             Code to Parse Arguments
 #############################################################
 
-import ExpFam as ef
+import expfam as ef
 AllocModelConstructor = {'MixModel': ef.mix.MixModel, \
-                         'QMixModel': ef.mix.QMixModel, \
-                         'QDPMixModel': ef.mix.QDPMixModel, \
-                         'QAdmixModel': ef.admix.QAdmixModel, \
-                         'QHDPAdmixModel': ef.admix.QHDPAdmixModel,\
-                         'QHDPAdmix': ef.admix.QHDPAdmixModel}
+                         'DPMixModel': ef.mix.DPMixModel, \
+                         'AdmixModel': ef.admix.AdmixModel, \
+                         'Admix': ef.admix.AdmixModel, \
+                         'HDPAdmixModel': ef.admix.HDPAdmixModel,\
+                         'HDP': ef.admix.HDPAdmixModel}
 
 PriorConstr = {'Gaussian': ef.obsModel.GaussWishDistrIndep, \
                'Gauss': ef.obsModel.GaussWishDistrIndep, \
@@ -163,12 +170,34 @@ def parse_args():
 
     parser.add_argument( '--initname', type=str, default='random' )
     parser.add_argument( '--seed', type=int, default=8675309 )    
+    parser.add_argument( '--evidenceEvery', type=int, default=1 )
     parser.add_argument( '--printEvery', type=int, default=5 )
     parser.add_argument( '--saveEvery', type=int, default=10 )
     return parser.parse_args()
 
-def main(args):
+def main(args):        
+    ####################################################### Data Module parsing
+    dataParams = dict()
+    for argName in ['nBatch', 'nRep', 'batch_size', 'seed']:
+      dataParams[argName] = args.__getattribute__( argName )
+    # Dynamically load module provided by user as data-generator
+    datagenmod = __import__( 'data.' + args.datagenModule, fromlist=['data'])
+    if 'print_data_info' in dir( datagenmod ):
+      datagenmod.print_data_info()
+      
+    ####################################################### Algorithm settings
+    algParams = dict()
+    for argName in ['initname', 'nIter', 'rhoexp', 'rhodelay', \
+                    'nIter', 'printEvery', 'saveEvery','evidenceEvery']:
+      algParams[ argName ] = args.__getattribute__( argName ) 
+      
+    if args.doonline:
+      algName = 'o'+args.algName
+    else:
+      algName = args.algName
+    print 'Learn Alg:  %s' % (algName)
     
+    ####################################################### ExpFam Model Params
     modelParams = dict()
     for argName in ['K', 'alpha0', 'min_covar']:
       modelParams[ argName ] = args.__getattribute__( argName ) 
@@ -176,52 +205,34 @@ def main(args):
     obsPriorParams = dict()
     for argName in []:
       obsPriorParams[ argName ] = args.__getattribute__( argName ) 
-
-    dataParams = dict()
-    for argName in ['nBatch', 'nRep', 'batch_size', 'seed']:
-      dataParams[argName] = args.__getattribute__( argName )
-
-    algParams = dict()
-    for argName in ['initname', 'nIter', 'rhoexp', 'rhodelay', \
-                    'nIter', 'printEvery', 'saveEvery']:
-      algParams[ argName ] = args.__getattribute__( argName ) 
-
-    # Dynamically load module provided by user as data-generator
-    datagenmod = __import__( 'data.' + args.datagenModule, fromlist=['data'])
-    if 'print_data_info' in dir( datagenmod ):
-      datagenmod.print_data_info()
-
-    am = AllocModelConstructor[ args.modelName ]( **modelParams )
-
     if args.doprior or args.algName.count('VB')>0:
       obsPrior = PriorConstr[ args.obsName ]( **obsPriorParams )
     else:
-      obsPrior = None
-      
+      obsPrior = None  
+    am = AllocModelConstructor[ args.modelName ]( qType=algName, **modelParams )
     m = ef.ExpFamModel( am, args.obsName, obsPrior )
     m.print_model_info()
 
-    if args.doonline:
-      algName = 'o'+args.algName
-    else:
-      algName = args.algName
-    print 'Learn Alg:  %s' % (algName)
+    doAdmix = (args.modelName.count('Admix') + args.modelName.count('HDP') )> 0
 
+    jobpath = os.path.join(args.datagenModule[:7], args.modelName, algName, args.jobname)
+    
+    ####################################################### Spawn individual tasks
     for task in xrange( args.taskid, args.taskid+args.nTask ):    
-      ##########################################################  Config seeds and dumpfiles
       seed = hash( args.jobname+str(task) ) % np.iinfo(int).max
       algParams['seed'] = seed
 
-      basepath = os.path.join( 'results', args.datagenModule[:7], args.modelName, algName, args.jobname, str(task) )
+      basepath = os.path.join( 'results', jobpath, str(task) )
       mkpath(  basepath )
       clear_folder( basepath )
       algParams['savefilename'] = os.path.join( basepath, 'trace' )
 
-      print 'Trial %2d/%d | alg. seed: %d | data seed: %d' % (task, args.nTask, algParams['seed'], dataParams['seed'])
+      print 'Trial %2d/%d | alg. seed: %d | data seed: %d' \
+                 % (task, args.nTask, algParams['seed'], dataParams['seed'])
       print '  savefile: %s' % (algParams['savefilename'])
 
       if jobID > 1:
-        logpath = os.path.join( 'logs', args.datagenModule[:7], args.modelName, algName, args.jobname )
+        logpath = os.path.join( 'logs', jobpath )
         mkpath( logpath )
         clear_folder( logpath, prefix=str(task) )
         os.symlink( LOGFILEPREFIX+'.out', '%s/%d.out' % (logpath, task) )
@@ -230,26 +241,27 @@ def main(args):
     
 
       ##########################################################  Build Learning Alg
-      if args.algName.count('EM')>0:
-        if args.doonline:
-          learnAlg = ef.learn.OnlineEMLearnAlg( m, **algParams )
-        elif args.dobatch:
-          learnAlg = ef.learn.EMLearnAlg( m, **algParams )
+      '''if args.algName.count('EM')>0:
+        learnAlg = ef.learn.EMLearnAlg( m, **algParams )
 
       elif args.algName.count('VB')>0:
         if args.doonline:
           learnAlg = ef.learn.OnlineVBLearnAlg( m, **algParams )
-        
         elif args.dobatch:
           learnAlg = ef.learn.VBLearnAlg( m, **algParams )
-        
+      '''
       if args.doonline:
-        if args.modelName.count('Admix') > 0:
+        learnAlg = ef.learn.OnlineVBLearnAlg( m, **algParams )
+      elif args.dobatch:
+        learnAlg = ef.learn.VBLearnAlg( m, **algParams )
+      
+      if args.doonline:
+        if doAdmix:
           Data = datagenmod.group_minibatch_generator( **dataParams )
         else:
           Data = datagenmod.minibatch_generator( **dataParams )
       else:
-        if args.modelName.count('Admix') > 0:
+        if doAdmix:
           Data = datagenmod.get_data_by_groups( **dataParams )
         else:
           Data = datagenmod.get_data( **dataParams )
@@ -257,7 +269,7 @@ def main(args):
       if args.dotest:
         testParams = dataParams
         testParams['seed'] += 1
-        if args.modelName.count('Admix') > 0:
+        if doAdmix:
           Dtest = datagenmod.get_data_by_groups( **testParams )
         else:
           Dtest = datagenmod.get_data( **testParams )

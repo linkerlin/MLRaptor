@@ -38,7 +38,7 @@ class ExpFamModel( object ):
     self.K     = self.allocModel.K
     if type( obsModelName ) == str:
       if obsModelName == 'Gaussian':
-        self.obsModel   = GaussObsCompSet2( allocModel.K, allocModel.qType, obsPrior)
+        self.obsModel   = GaussObsCompSet( allocModel.K, allocModel.qType, obsPrior)
       if obsModelName == 'Bernoulli':
         self.obsModel   = BernObsCompSet( allocModel.K, allocModel.qType, obsPrior)
     else:

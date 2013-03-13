@@ -1,17 +1,19 @@
 '''
-  Prior parameterization for mean mu, precision Lambda
+  GaussWishDistrIndep.py
+  Independently factorized Joint Distribution over 
+     mean vector mu, precision matrix Lambda
 
-    prec matrix Lam ~ Wish( dF, invW )
-    mean vector  mu ~ Normal( m,  L )
+  Lambda ~ Wish( dF, invW )
+  mu ~ Normal( m,  L )
   
   Parameters
   -------
-    m,L    define mu's prior (see GaussianDistr2.py)
-    v,invW define Lam's prior (see WishartDistr.py)
+    m,L    define mu's prior. See GaussianDistr.py.
+    v,invW define Lambdas's prior. See WishartDistr.py.
 '''
 import numpy as np
 
-from .GaussianDistr2 import GaussianDistr2
+from .GaussianDistr import GaussianDistr
 from .WishartDistr import WishartDistr
 
 LOGTWOPI = np.log( 2.0*np.pi )
@@ -24,7 +26,7 @@ class GaussWishDistrIndep( object ):
 
   def set_dims( self, D ):
     if self.muD is None:
-      self.muD = GaussianDistr2()
+      self.muD = GaussianDistr()
       self.LamD = WishartDistr()
     self.muD.set_dims( D)
     self.LamD.set_dims( D)

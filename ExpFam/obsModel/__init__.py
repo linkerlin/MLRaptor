@@ -3,21 +3,16 @@ The :mod:`obsModel` module provides standard parametric distributions
   in the exponential family.
 """
 
-from .GaussianDistr2 import GaussianDistr2
+from .GaussianDistr import GaussianDistr
 from .WishartDistr import WishartDistr
 from .GaussWishDistrIndep import GaussWishDistrIndep
-
-from .GaussDistr import GaussDistr
-from .GaussWishDistr import GaussWishDistr
 
 from .BernoulliDistr import BernoulliDistr
 from .BetaDistr import BetaDistr
 from .BernObsCompSet import BernObsCompSet
 
-from .GaussianObsCompSet import GaussianObsCompSet
-from .GaussObsCompSet2 import GaussObsCompSet2
+from .GaussObsCompSet import GaussObsCompSet
 
-__all__ = ['GaussDistr', 'GaussWishDistr', \
+__all__ = ['GaussianDistr', 'GaussWishDistrIndep', 'WishartDistr', \
             'BernoulliDistr', 'BetaDistr', 'BernObsCompSet', \
-           'WishartDistr', 'GaussianDistr2', 'GaussWishDistrIndep', \
-           'GaussianObsCompSet', 'GaussObsCompSet2']
+           'GaussObsCompSet']
