@@ -41,21 +41,17 @@ class HMM( object ):
           Compute posterior responsibilities at each timestep across all sequences
             *and* pairwise resp's for each adjacent set of timesteps in each sequence 
     '''
-    LP['resp'] = list()
+    LP['resp'] = np.empty( LP['E_log_soft_ev'].shape )
     LP['respPair'] = list()
     LP['evidence'] = 0
     if self.qType == 'EM':    
       for ii in xrange( Data['nSeq'] ):
-        tIDs = xrange( Data['Tstart'][ii], Data['Tstop'][ii] )
-        seqLogSoftEv =  LP['E_log_soft_ev'].take( tIDs, axis=0 )
+        seqLogSoftEv =  LP['E_log_soft_ev'][ Data['Tstart'][ii]:Data['Tstop'][ii] ]
         seqResp, seqRespPair, seqLogPr = HMMUtil.FwdBwdAlg( self.InitPi, self.PiMat, seqLogSoftEv )
-        LP['resp'].append( seqResp )        
+        LP['resp'][ Data['Tstart'][ii]:Data['Tstop'][ii] ] = seqResp        
         LP['respPair'].append( seqRespPair )
         LP['evidence'] += seqLogPr
-      # vstacking is faster than filling in each block of a big matrix
-      #   see SpeedFillingGiantMatrix.py in test/
-      LP['resp'] = np.vstack( LP['resp'] )
-      return LP
+    return LP
     
     
 

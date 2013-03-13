@@ -9,7 +9,7 @@
 #from ..util.MLUtil import logsoftev2softev
 import numpy as np
 
-def FwdBwdAlg( PiInit, PiMat, SoftEv ):
+def FwdBwdAlg( PiInit, PiMat, logSoftEv ):
   '''
      Returns
      -------
@@ -20,8 +20,7 @@ def FwdBwdAlg( PiInit, PiMat, SoftEv ):
                respPair[t,j,k] = marg. probability that step t -> j, t+1 -> k
                            p( z_t-1 =j, z_t = k | x_1, x_2, ... x_T )
   '''
-  #SoftEv, lognormC = logsoftev2softev( logSoftEv )
-  #normC = np.exp( lognormC )
+  SoftEv, lognormC = logsoftev2softev( logSoftEv )
   
   fmsg, scaleC = FwdAlg( PiInit, PiMat, SoftEv )
   bmsg = BwdAlg( PiInit, PiMat, SoftEv, scaleC )
@@ -34,7 +33,7 @@ def FwdBwdAlg( PiInit, PiMat, SoftEv ):
     veccur  = bmsg[t] * SoftEv[t]
     respPair[t] = PiMat * np.outer(vecprev,veccur) / scaleC[t]
     assert np.allclose( respPair[t].sum(), 1.0 )
-  margLogPr = np.log( scaleC ).sum()
+  margLogPr = np.log( scaleC ).sum() + lognormC.sum()
   return resp, respPair, margLogPr  
     
 def FwdAlg( PiInit, PiMat, SoftEv ):
