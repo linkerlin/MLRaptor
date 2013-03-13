@@ -6,10 +6,10 @@
   Intentionally separated from rest of HMM code, so that we can swap in 
      any fast routine for this calculation with ease.
 '''
-from ..util.MLUtil import logsoftev2softev
+#from ..util.MLUtil import logsoftev2softev
 import numpy as np
 
-def FwdBwdAlg( PiInit, PiMat, logSoftEv ):
+def FwdBwdAlg( PiInit, PiMat, SoftEv ):
   '''
      Returns
      -------
@@ -20,21 +20,22 @@ def FwdBwdAlg( PiInit, PiMat, logSoftEv ):
                respPair[t,j,k] = marg. probability that step t -> j, t+1 -> k
                            p( z_t-1 =j, z_t = k | x_1, x_2, ... x_T )
   '''
-  SoftEv, lognormC = logsoftev2softev( logSoftEv )
+  #SoftEv, lognormC = logsoftev2softev( logSoftEv )
+  #normC = np.exp( lognormC )
+  
   fmsg, scaleC = FwdAlg( PiInit, PiMat, SoftEv )
   bmsg = BwdAlg( PiInit, PiMat, SoftEv, scaleC )
   resp = fmsg * bmsg
   
-  normC = np.exp( lognormC )
   T,K = resp.shape
   respPair = np.zeros( (T,K,K) )
   for t in xrange( 1, T ):
     vecprev = fmsg[t-1]
     veccur  = bmsg[t] * SoftEv[t]
-    respPair[t] = PiMat * np.outer(vecprev,veccur)
-    respPair[t] /= respPair[t].sum()
+    respPair[t] = PiMat * np.outer(vecprev,veccur) / scaleC[t]
+    assert np.allclose( respPair[t].sum(), 1.0 )
   margLogPr = np.log( scaleC ).sum()
-  return resp, respPair, fmsg, bmsg, margLogPr  
+  return resp, respPair, margLogPr  
     
 def FwdAlg( PiInit, PiMat, SoftEv ):
   '''
@@ -70,11 +71,10 @@ def BwdAlg( PiInit, PiMat, SoftEv, scaleC ):
   '''
   T = SoftEv.shape[0]
   K = PiInit.size
-  PiMat = PiMat.T.copy()
   
   bmsg = np.ones( (T,K) )
   pwmsg = np.zeros( (T,K) )
   for t in xrange( T-2, -1, -1 ):
-    bmsg[t] = np.dot(PiMat,bmsg[t+1] * SoftEv[t+1] )
+    bmsg[t] = np.dot(PiMat, bmsg[t+1] * SoftEv[t+1] )
     bmsg[t] /= scaleC[t+1]
   return bmsg

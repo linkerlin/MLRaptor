@@ -37,15 +37,24 @@ class HMM( object ):
       return np2flatstr( self.PiMat )
     	    	
   def calc_local_params( self, Data, LP):
-    ''' E-step
-          alternate between these updates until convergence
-             q(Z)  (posterior on topic-token assignment)
-         and q(W)  (posterior on group-topic distribution)
+    ''' E-step:
+          Compute posterior responsibilities at each timestep across all sequences
+            *and* pairwise resp's for each adjacent set of timesteps in each sequence 
     '''
-    if self.qType == 'EM':
-      resp, respPair = HMMUtil.FwdBwdAlg( self.InitPi, self.PiMat, LP['E_log_soft_ev'] )
-      LP['resp'] = resp
-      LP['respPair'] = respPair
+    LP['resp'] = list()
+    LP['respPair'] = list()
+    LP['evidence'] = 0
+    if self.qType == 'EM':    
+      for ii in xrange( Data['nSeq'] ):
+        tIDs = xrange( Data['Tstart'][ii], Data['Tstop'][ii] )
+        seqLogSoftEv =  LP['E_log_soft_ev'].take( tIDs, axis=0 )
+        seqResp, seqRespPair, seqLogPr = HMMUtil.FwdBwdAlg( self.InitPi, self.PiMat, seqLogSoftEv )
+        LP['resp'].append( seqResp )        
+        LP['respPair'].append( seqRespPair )
+        LP['evidence'] += seqLogPr
+      # vstacking is faster than filling in each block of a big matrix
+      #   see SpeedFillingGiantMatrix.py in test/
+      LP['resp'] = np.vstack( LP['resp'] )
       return LP
     
     
@@ -56,10 +65,11 @@ class HMM( object ):
     '''
     SS['N'] = np.sum( LP['resp'], axis=0 )
     SS['Ntotal'] = SS['N'].sum()
-    SS['Ctrans'] = np.zeros( self.K, self.K )
+    SS['Ctrans'] = np.zeros( (self.K, self.K) )
+    SS['Cinit']  = np.zeros( self.K)
     for ii in xrange( Data['nSeq'] ):
-      for tt in xrange( Data['Tstart'][ii]+1, Data['Tstop'][ii] ):
-        SS['Ctrans'] += LP['respPair'][tt]
+      SS['Cinit'] += LP['resp'][ Data['Tstart'][ii] ]
+      SS['Ctrans'] += LP['respPair'][ii].sum( axis=0 )
     return SS
     
   ###################################################################  Global M-step
@@ -75,6 +85,9 @@ class HMM( object ):
         self.update_global_params_onlineVB( SS, rho, Ntotal )
       
   def update_global_params_EM( self, SS ):
+    self.PiInit = self.alpha0 + SS['Cinit']
+    self.PiInit /= np.sum( self.PiInit )
+
     self.PiMat = self.alpha0 + SS['Ctrans']
     self.PiMat /= np.sum( self.PiMat, axis=1)[:,np.newaxis]
     
