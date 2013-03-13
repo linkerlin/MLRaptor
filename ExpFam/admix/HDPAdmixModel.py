@@ -1,20 +1,17 @@
 '''
-  Represents mean-field factorization of a 
-    Bayesian infinite admixture model (via Hier. Dirichlet Process)
-    automatically determines number of components
+  MixModel.py
+     Bayesian parametric admixture model with an "infinite" number of topics/components
 
+  Provides code for performing variational Bayesian inference,
+     using a mean-field approximation that enforces a hard truncation on # topics K
+     
  Author: Mike Hughes (mike@michaelchughes.com)
 
  Parameters
  -------
-   alpha0  : scalar hyperparameter of global stick-breaking GEM prior on mix. weights
-   gamma   : scalar hyperparameter of group-level Dirichlet prior on mix. weights
-    
- Usage
- -------
-
- Inference
- -------
+     K       : # of components
+     alpha0  : scalar hyperparameter of global stick-breaking GEM prior on mix. weights
+     gamma   : scalar hyperparameter of group-level Dirichlet prior on mix. weights
 '''
 
 import numpy as np
@@ -25,9 +22,9 @@ import GlobalStickPropOptimizer
 
 EPS = 10*np.finfo(float).eps
 
-class QHDPAdmixModel( object ):
+class HDPAdmixModel( object ):
 
-  def __init__( self, K, alpha0, gamma=1, truncType='z', **kwargs):
+  def __init__( self, K=3, alpha0=1.0, gamma=1.0, truncType='z', **kwargs):
     self.qType = 'VB'
     self.K = K
     self.alpha1 = 1.0
@@ -86,7 +83,7 @@ class QHDPAdmixModel( object ):
       lpr[ GroupIDs[gg] ] += LP['Elogw_perGroup'][gg, :-1]
     lprPerItem = logsumexp( lpr, axis=1 )
     resp   = np.exp( lpr-lprPerItem[:,np.newaxis] )
-    resp   /= resp.sum( axis=1)[:,np.newaxis] # row normalize
+    #resp   /= resp.sum( axis=1)[:,np.newaxis] # row normalize
     assert np.allclose( resp.sum(axis=1), 1)
     LP['resp'] = resp
     return LP
@@ -94,23 +91,13 @@ class QHDPAdmixModel( object ):
   def get_global_suff_stats( self, Data, SS, LP ):
     ''' 
     '''
-    SS = dict()
     SS['N'] = np.sum( LP['resp'], axis=0 )
-    SS['Nall'] = SS['N'].sum()
+    SS['Ntotal'] = SS['N'].sum()
     try:
       SS['Elogw'] = np.sum( LP['Elogw_perGroup'], axis=0 )
     except KeyError:
       SS['Elogw'] = self.gamma*self.Ebeta
     SS['G'] = Data['nGroup']
-    
-    '''
-    print Data['TrueW_perGroup'][:4,:]
-    print '---'
-    try:
-      print np.exp( LP['Elogw_perGroup'][:4,:] )
-    except KeyError:
-      pass
-    '''  
     return SS
     
   def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs ):
@@ -124,7 +111,6 @@ class QHDPAdmixModel( object ):
     else:
       self.vstar = rho*vstar + (1-rho)*self.vstar
     self.Ebeta = self.get_beta()
-    print self.Ebeta
     
   def get_beta( self):
     v = np.hstack( [self.vstar, 1] )
@@ -138,7 +124,7 @@ class QHDPAdmixModel( object ):
     return self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP ) \
            + self.E_logpW( LP )   - self.E_logqW(LP)
 
-  ####################################################  ELBO computations
+  #################################################### VB ELBO computations
   def E_logpZ( self, GroupIDs, LP ):
     ElogpZ = 0
     for gg in xrange( len(GroupIDs) ):

@@ -1,25 +1,21 @@
 '''
-  Represents mean-field factorization of a 
-    Bayesian admixture model (like Latent Dirichlet Allocation)
-     with a finite number of components K
+  MixModel.py
+     Bayesian parametric admixture model with a finite number of components K
 
+  Provides code for performing variational Bayesian inference,
+     using a mean-field approximation.
+     
  Author: Mike Hughes (mike@michaelchughes.com)
 
  Parameters
  -------
-   alpha0   : scalar hyperparameter of symmetric Dirichlet prior on mix. weights
-   
- Usage
- -------
-   This class is abstract.  See QGAM.py.
-
- Inference
- -------
-   See VBLearner.py
+    K        : # of components
+    alpha0   : scalar hyperparameter of symmetric Dirichlet prior on mix. weights
 
  References
  -------
-   Pattern Recognition and Machine Learning, by C. Bishop.
+   Latent Dirichlet Allocation, by Blei, Ng, and Jordan
+      introduces a classic admixture model with Dirichlet-Mult observations.
 '''
 
 import numpy as np
@@ -28,9 +24,9 @@ from ..util.MLUtil import logsumexp
 
 EPS = 10*np.finfo(float).eps
 
-class QAdmixModel( object ):
+class AdmixModel( object ):
 
-  def __init__( self, K, alpha0, **kwargs):
+  def __init__( self, K=3, alpha0=1.0, **kwargs):
     self.qType = 'VB'
     self.K = K
     self.alpha0 = alpha0

@@ -1,21 +1,18 @@
-MLRaptor : EM and Variation Inference for Common Graphical Models toolbox, in Python.
+MLRaptor : EM/Variational Inference for Exponential Family Graphical Models.
 Website: http://michaelchughes.github.com/MLRaptor/
 Author:  Mike Hughes (www.michaelchughes.com)
 Please email all comments/questions to mike <AT> michaelchughes.com
 
-
-
 The repository is organized as follows:  
-  GMM/ contains relevant code for Gaussian mixture models
+  expfam/ Defines python module for learning exp. fam. graphical models.
 
   doc/  contains human-readable documentation.
 
-  data/ example dataset, in plain txt format (readable by np.loadtxt)
+  data/ example dataset modules for loading/using toy data
       
 Look for additional documentation and occasional updates on github:
    https://github.com/michaelchughes/MLRaptor
      
-
 References:
 The canonical textbook is:
   * Pattern Recognition and Machine Learning (PRML), by Christopher Bishop

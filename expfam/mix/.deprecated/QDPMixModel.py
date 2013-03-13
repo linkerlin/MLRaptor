@@ -37,11 +37,10 @@ LOGPI = np.log(np.pi)
 LOGTWO = np.log(2.00)
 LOGTWOPI = np.log( 2.0*np.pi )
 
-class QDPMixModel( object ):
+class DPMixModel( object ):
 
   def __init__(self, K, alpha0=1.0, truncType='z', **kwargs):
-    self.qType = 'VB'
-
+    self.qType = 'VB' # Cannot do EM for this model!
     self.K = K
     self.alpha1 = 1.0
     self.alpha0 = alpha0    

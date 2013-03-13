@@ -1,8 +1,14 @@
 '''
+  GaussObsCompSet.py
+  High-level representation of Gaussian observation model
+     for exponential family
+     
+  This object represents the explicit *prior* distribution (if any)
+     as well as the set/collection of mixture component parameters 1,2,... K   
 '''
 import numpy as np
 
-from .GaussianDistr2 import GaussianDistr2
+from .GaussianDistr import GaussianDistr
 from .GaussWishDistrIndep import GaussWishDistrIndep
 
 LOGPI = np.log(np.pi)
@@ -10,7 +16,7 @@ LOGTWO = np.log(2.00)
 LOGTWOPI = np.log( 2.0*np.pi )
 EPS = 10*np.finfo(float).eps
 
-class GaussObsCompSet2( object ):
+class GaussObsCompSet( object ):
 
   def __init__( self, K, qType='EM', obsPrior=None, min_covar=1e-8):
     self.K = K
@@ -30,8 +36,8 @@ class GaussObsCompSet2( object ):
     self.D = Data['X'].shape[1]
     if self.obsPrior is not None:
       self.obsPrior.set_dims( self.D )
-
-  #######################################################  To/From String
+  
+  ################################################################## File IO 
   def save_params( self, fname ):
     for k in xrange(self.K):
       if self.qType == 'VB':
@@ -102,13 +108,13 @@ class GaussObsCompSet2( object ):
       #if self.obsPrior is not None:
       #  precMat += self.obsPrior.LamPrior.invW
       #  mean += self.obsPrior.muPrior.m        
-      self.qobsDistr[k] = GaussianDistr2( mean, precMat )
+      self.qobsDistr[k] = GaussianDistr( mean, precMat )
       
       
   #########################################################  Soft Evidence Fcns  
   def calc_local_params( self, Data, LP):
     if self.qType == 'EM':
-      LP['log_soft_ev'] = self.log_soft_ev_mat( Data['X'] )
+      LP['E_log_soft_ev'] = self.log_soft_ev_mat( Data['X'] )
     else:
       LP['E_log_soft_ev'] = self.E_log_soft_ev_mat( Data['X'] )
     return LP
@@ -150,21 +156,7 @@ class GaussObsCompSet2( object ):
 
       xmT = np.outer(SS['x'][k],muD.m)
       xmxmT  =  SS['xxT'][k] - xmT - xmT.T + SS['N'][k]*np.outer(muD.m, muD.m)
-      #print  np.outer(SS['x'][k],muD.m)
-      try:
-        lpX[k] -= 0.5*LamD.E_traceLambda( xmxmT )
-      except Exception:
-        print 'SS[N]'
-        print SS['N'][k]
-        print 'E[x]'
-        print SS['x'][k]
-        print 'xxT'
-        print np.sort( np.linalg.eigvals( SS['xxT'][k] ) )[:10]
-        print SS['xxT'][k]
-        print 'xmT'
-        print np.sort( np.linalg.eigvals( xmT + xmT.T ) )[:10]
-        print xmT + xmT.T
-        raise ValueError
+      lpX[k] -= 0.5*LamD.E_traceLambda( xmxmT )
     return lpX.sum()
     
   def E_logpPhi( self ):

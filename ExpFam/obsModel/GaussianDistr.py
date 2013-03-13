@@ -1,12 +1,11 @@
 '''
   Gaussian distribution in D-dimensions
-    for generating mean vectors
 
-    \mu ~ Normal( mean=m, covar=L^{-1} )
+  x ~ Normal( mean=m, covar=L^{-1} )
 
   Parameters
   -------    
-    m     :  Dx1 vector
+    m     :  Dx1 mean vector 
     L     :  DxD inverse covariance matrix
 '''
 import numpy as np
@@ -20,7 +19,7 @@ LOGTWOPI = np.log( 2.0*np.pi )
 
 EPS = 10*np.finfo(float).eps
 
-class GaussianDistr2( object ):
+class GaussianDistr( object ):
 
   def __init__(self, m=None, L=None):
     if L is not None:
@@ -59,7 +58,7 @@ class GaussianDistr2( object ):
   def to_string( self ):
     return np2flatstr( np.hstack([self.D,self.m]) ) + np2flatstr( self.L )
 
-  #######################################################
+  #######################################################   ExpFam Natural Param Convert
   def get_natural_params( self ):
     eta = self.L, np.dot(self.L,self.m)
     return eta 
@@ -69,7 +68,7 @@ class GaussianDistr2( object ):
     self.L = L
     self.m = np.linalg.solve( L, Lm) # invL*L*m = m
 
-  ########################################## Accessors
+  ##################################################### Accessors
   def get_mean(self):
     return self.m
 
@@ -80,7 +79,7 @@ class GaussianDistr2( object ):
       self.invL = np.linalg.pinv( self.L )
       return self.invL
 
-  ########################################## Posterior calc
+  #################################################### Posterior calc
   def rho_update( self, rho, newGaussDistr ):
     etaCUR = self.get_natural_params()
     etaSTAR = newGaussDistr.get_natural_params()
@@ -94,8 +93,9 @@ class GaussianDistr2( object ):
     L = self.L + EN*ELam
     Lm = np.dot(self.L,self.m) + np.dot( ELam, Esum )
     m = np.linalg.solve( L, Lm )
-    return GaussianDistr2( m, L )
+    return GaussianDistr( m, L )
 
+  #################################################### Norm Constants
   def get_log_norm_const( self ):
     ''' p( mu ) = 1/Z * f(mu)
         this returns -1*log( Z )
@@ -107,7 +107,7 @@ class GaussianDistr2( object ):
     '''
     return -1*self.get_log_norm_const() + 0.5*self.D
 
-  ########################################## Soft evidence computation
+  #################################################### Soft evidence computation
   def log_pdf( self, X ):
     if type(X) is dict:
       X = X['X']
