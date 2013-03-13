@@ -66,7 +66,7 @@ class BernObsCompSet( object ):
     if Ntotal is None:
       ampF = 1
     else:
-      ampF = Ntotal/SS['Nall']
+      ampF = Ntotal/SS['Ntotal']
     for k in xrange( self.K ):
       postDistr = self.obsPrior.getPosteriorDistr( ampF*SS['N'][k], ampF*SS['count'][k] )
       if self.qobsDistr[k] is None:

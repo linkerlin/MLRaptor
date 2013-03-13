@@ -28,9 +28,9 @@ class MixModel( object ):
     self.alpha0 = alpha0
 
   def to_string(self):
-    if self.qType == 'VB':
+    if self.qType == 'VB' or self.qType == 'oVB':
       return np2flatstr( self.alpha )
-    else:
+    elif self.qType == 'EM':
       return np2flatstr( self.w )
       
   def get_info_string( self):
@@ -40,9 +40,9 @@ class MixModel( object ):
   def calc_local_params( self, Data, LP ):
     ''' 
     '''
-    if self.qType == 'VB':
+    if self.qType.count('VB') > 0:
       lpr = self.Elogw + LP['E_log_soft_ev']
-    elif self.qType == 'EM':
+    elif self.qType.count('EM') > 0:
       lpr = np.log(self.w) + LP['E_log_soft_ev']
     lprPerItem = logsumexp( lpr, axis=1 )
     resp   = np.exp( lpr-lprPerItem[:,np.newaxis] )
@@ -90,7 +90,7 @@ class MixModel( object ):
   def calc_evidence( self, Data, SS, LP):
     if self.qType == 'EM':
       return LP['evidence']
-    elif self.qType == 'VB':
+    elif self.qType.count('VB') >0:
       return self.E_logpZ( LP ) - self.E_logqZ( LP ) \
            + self.E_logpW()   - self.E_logqW()
            

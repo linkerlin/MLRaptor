@@ -13,6 +13,7 @@ class OnlineVBLearnAlg( LearnAlg ):
   def __init__( self, expfamModel, **kwargs ):
     super(type(self),self).__init__( **kwargs )
     self.expfamModel = expfamModel
+    self.Niter = '' # empty
 
   def fit( self, DataGenerator, seed, Ntotal=10000, Dtest=None ):
     self.start_time = time.time()

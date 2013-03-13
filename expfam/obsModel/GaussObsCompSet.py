@@ -40,7 +40,7 @@ class GaussObsCompSet( object ):
   ################################################################## File IO 
   def save_params( self, fname ):
     for k in xrange(self.K):
-      if self.qType == 'VB':
+      if self.qType.count('VB')>0:
         with open( fname+'ObsComp%03dMu.dat'%(k), 'a') as f:
           f.write( self.qobsDistr[k].muD.to_string()+'\n'  )
         with open( fname+'ObsComp%03dLam.dat'%(k), 'a') as f:
@@ -75,7 +75,7 @@ class GaussObsCompSet( object ):
         self.update_obs_params_EM( SS)
       else:
         self.update_obs_params_EM_stochastic( SS, rho )
-    elif self.qType == 'VB':
+    elif self.qType.count('VB') > 0:
       if rho is None:
         self.update_obs_params_VB( SS )
       else:
@@ -87,7 +87,7 @@ class GaussObsCompSet( object ):
       self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['N'][k], SS['x'][k], SS['xxT'][k], ELam )
 
   def update_obs_params_VB_stochastic( self, SS, rho, Ntotal):
-    ampF = Ntotal/SS['Nall']
+    ampF = Ntotal/SS['Ntotal']
     for k in xrange( self.K ):
       ELam = self.obsPrior.LamD.E_Lam()
       postDistr = self.obsPrior.getPosteriorDistr( ampF*SS['N'][k], ampF*SS['x'][k], ampF*SS['xxT'][k], ELam )
