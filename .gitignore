@@ -28,6 +28,8 @@ optim/
 *~lock*
 *.DS_Store
 .*.swp
+# Exclude weird NFS file system dumps
+.nfs*
 
 # Exclude mocap files
 *.amc
