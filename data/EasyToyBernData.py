@@ -28,7 +28,7 @@ for k in xrange(K):
 def sample_data_from_comp( k, Nk ):
   return np.float32( np.random.rand( Nk, D) < Phi[k,:] )
   
-def print_data_info():
+def print_data_info( modelName ):
   print 'Easy-to-learn toy data for K=3 Bernoulli Obs Model'
   print '  Mix weights:  '
   print '                ', np2flatstr( w )

@@ -6,7 +6,7 @@
   Intentionally separated from rest of HMM code, so that we can swap in 
      any fast routine for this calculation with ease.
 '''
-#from ..util.MLUtil import logsoftev2softev
+from ..util.MLUtil import logsoftev2softev
 import numpy as np
 
 def FwdBwdAlg( PiInit, PiMat, logSoftEv ):

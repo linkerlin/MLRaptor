@@ -3,6 +3,7 @@ import numpy as np
 import scipy.spatial
 import scipy.cluster
 from ..util.MLUtil import logsumexp
+from ..hmm.HMMUtil import FwdBwdAlg
 
 class GaussObsSetInitializer( object ):
   def __init__( self, initname, seed, doHard=False, ctrIDs=None):
@@ -20,10 +21,35 @@ class GaussObsSetInitializer( object ):
                 or using K centers learned via kmeans 
     '''
     expfamModel.set_obs_dims( Data )
+    if 'nSeq' in Data:
+      self.init_params_sequenceModel( expfamModel, Data)
+    else:
+      self.init_params_mixModel( expfamModel, Data)
+
+  def init_params_mixModel( self, expfamModel, Data):
     LP = dict()
-    LP['resp'] = self.init_resp( Data['X'], expfamModel.K )
+    LP['resp'],dummy = self.init_resp( Data['X'], expfamModel.K )
     SS = expfamModel.get_global_suff_stats( Data, LP )
     expfamModel.update_global_params( SS )
+
+  def init_params_sequenceModel( self, expfamModel, Data):
+    '''  Obtain initial obs param estimates via kmeans or random selection,
+          then run Fwd/Bwd using uniform transition matrix to get needed LP params
+    '''
+    K = expfamModel.K
+    PiInit = 1.0/K*np.ones( K)
+    PiMat = 1.0/K*np.ones( (K,K) )
+    LP = dict()
+    LP['resp'], LP['E_log_soft_ev'] = self.init_resp( Data['X'], K )
+    LP['respPair'] = list()
+    for ii in xrange( Data['nSeq'] ):
+      seqLogSoftEv =  LP['E_log_soft_ev'][ Data['Tstart'][ii]:Data['Tstop'][ii] ]
+      seqResp, seqRespPair, seqLogPr = FwdBwdAlg( PiInit, PiMat, seqLogSoftEv )
+      LP['resp'][ Data['Tstart'][ii]:Data['Tstop'][ii] ] = seqResp        
+      LP['respPair'].append( seqRespPair )       
+    SS = expfamModel.get_global_suff_stats( Data, LP )
+    expfamModel.update_global_params( SS )
+    
 
   '''
   def init_params_perGroup(self, Data, LP ):
@@ -43,10 +69,10 @@ class GaussObsSetInitializer( object ):
                   resp[n,k] = posterior prob. that item n belongs to cluster k
     '''
     if self.initname == 'kmeans':
-      resp = self.get_kmeans_resp( X, K )
+      resp,lpr = self.get_kmeans_resp( X, K )
     elif self.initname == 'random':
-      resp = self.get_random_resp( X, K )
-    return resp
+      resp,lpr = self.get_random_resp( X, K )
+    return resp, lpr
 
   def get_kmeans_resp( self, X, K ):
     ''' Kmeans initialization of cluster responsibilities.
@@ -69,8 +95,8 @@ class GaussObsSetInitializer( object ):
     scipy.random.seed( self.seed )
     Mu, Z = scipy.cluster.vq.kmeans2( X, K, iter=25, minit='points' )
     Dist = scipy.spatial.distance.cdist( X, Mu )
-    resp = self.get_resp_from_distance_matrix( Dist )
-    return resp
+    resp,lpr = self.get_resp_from_distance_matrix( Dist )
+    return resp, lpr
 
   def get_random_resp( self, X, K ):
     ''' Random sampling initialization of cluster responsibilities.
@@ -133,4 +159,4 @@ class GaussObsSetInitializer( object ):
       resp  = np.exp( lpr-lprPerItem[:,np.newaxis] )
       resp /= np.sum(resp,axis=1)[:,np.newaxis]
     assert np.allclose( np.sum(resp,axis=1), 1.0 )  
-    return resp  
+    return resp, lpr

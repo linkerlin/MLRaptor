@@ -49,6 +49,12 @@ class ExpFamModel( object ):
     print 'Obs. Data  Model:  %s'%  (self.obsModel.get_info_string() )
     print 'Obs. Data  Prior:  %s'%  (self.obsModel.get_info_string_prior() )
   
+  def print_global_params( self ):
+    print 'Allocation Model:'
+    print  self.allocModel.get_human_global_param_string()
+    print 'Obs. Data Model:'
+    print  self.obsModel.get_human_global_param_string()
+
   def save_params(self, fname):
     with open( fname+'AllocModel.dat', 'a') as f:
       f.write( self.allocModel.to_string()+'\n' )

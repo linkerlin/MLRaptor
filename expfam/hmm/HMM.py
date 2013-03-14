@@ -15,7 +15,8 @@
 
 import numpy as np
 from scipy.special import gammaln, digamma
-from ..util.MLUtil import logsumexp
+from ..util.MLUtil import logsumexp, np2flatstr
+from ..hmm.HMMUtil import FwdBwdAlg
 
 EPS = 10*np.finfo(float).eps
 
@@ -29,6 +30,9 @@ class HMM( object ):
 
   def get_info_string( self):
     return 'Finite Hidden Markov model with %d components' % (self.K)
+
+  def get_human_global_param_string(self):
+    return "PiInit: %s\nPiMat:\n%s" % ( str(self.PiInit), str(self.PiMat)  )
 
   def to_string( self):
     if self.qType == 'VB':
@@ -47,13 +51,11 @@ class HMM( object ):
     if self.qType == 'EM':    
       for ii in xrange( Data['nSeq'] ):
         seqLogSoftEv =  LP['E_log_soft_ev'][ Data['Tstart'][ii]:Data['Tstop'][ii] ]
-        seqResp, seqRespPair, seqLogPr = HMMUtil.FwdBwdAlg( self.InitPi, self.PiMat, seqLogSoftEv )
+        seqResp, seqRespPair, seqLogPr = FwdBwdAlg( self.PiInit, self.PiMat, seqLogSoftEv )
         LP['resp'][ Data['Tstart'][ii]:Data['Tstop'][ii] ] = seqResp        
         LP['respPair'].append( seqRespPair )
         LP['evidence'] += seqLogPr
     return LP
-    
-    
 
   ###################################################################  Global Suff Stat
   def get_global_suff_stats( self, Data, SS, LP ):

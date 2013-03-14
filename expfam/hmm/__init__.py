@@ -4,6 +4,6 @@ The :mod:`admix` module provides variational approximations to
 """
 
 from .HMM import HMM
-import HMMUtil
+from .HMMUtil import *
 
 __all__ = ['HMM', 'HMMUtil']

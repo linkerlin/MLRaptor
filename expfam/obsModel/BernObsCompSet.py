@@ -16,18 +16,19 @@ class BernObsCompSet( object ):
     self.qobsDistr = [None for k in xrange(K)]
     self.D = None
 
-  def to_string(self):
+  def get_info_string(self):
     return 'Bernoulli distribution'
   
-  def to_string_prior(self):
-    if self.obsPrior is None:
-      return 'None'
-    return 'Beta distr'
+  def get_info_string_prior(self):
+    return 'Beta distribution'
 
   def set_obs_dims( self, Data):
     self.D = Data['X'].shape[1]
     if self.obsPrior is not None:
       self.obsPrior.set_dims( self.D )
+
+  def save_params( self, filename):
+    pass
 
   ################################################################## Suff stats
   def get_global_suff_stats( self, Data, SS, LP ):
@@ -52,7 +53,7 @@ class BernObsCompSet( object ):
         self.update_obs_params_EM( SS)
       else:
         self.update_obs_params_EM_stochastic( SS, rho )
-    elif self.qType == 'VB':
+    elif self.qType.count('VB')>0:
       if rho is None:
         self.update_obs_params_VB( SS )
       else:
@@ -85,7 +86,7 @@ class BernObsCompSet( object ):
   #########################################################  Soft Evidence Fcns  
   def calc_local_params( self, Data, LP):
     if self.qType == 'EM':
-      LP['log_soft_ev'] = self.log_soft_ev_mat( Data['X'] )
+      LP['E_log_soft_ev'] = self.log_soft_ev_mat( Data['X'] )
     else:
       LP['E_log_soft_ev'] = self.E_log_soft_ev_mat( Data['X'] )
     return LP

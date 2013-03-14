@@ -123,6 +123,7 @@ if not sys.stdout.isatty():
 import expfam as ef
 AllocModelConstructor = {'MixModel': ef.mix.MixModel, \
                          'DPMixModel': ef.mix.DPMixModel, \
+                         'HMM': ef.hmm.HMM, \
                          'AdmixModel': ef.admix.AdmixModel, \
                          'Admix': ef.admix.AdmixModel, \
                          'HDPAdmixModel': ef.admix.HDPAdmixModel,\
@@ -152,6 +153,7 @@ def parse_args():
     lgroup.add_argument('--doonline', action='store_true')
 
     parser.add_argument('--dotest', action='store_true',default=False)
+    parser.add_argument('--doprintfinal', action='store_true',default=False)
 
     # Batch learning args
     parser.add_argument( '--nIter', type=int, default=100 )
@@ -175,6 +177,61 @@ def parse_args():
     parser.add_argument( '--saveEvery', type=int, default=10 )
     return parser.parse_args()
 
+def load_data( datagenmod, dataParams, doOnline, doAdmix, doHMM):
+  ''' Load training data from user-provided data "generation" module
+       which we assume implements the appropriate generating function
+      e.g. "get_data" or "get_sequence_data"
+  '''
+  if doOnline:
+    summaryStr = "  Streaming data! %d batches, %d repetitions" % ( dataParams['nBatch'], dataParams['nRep'])
+    if doAdmix:
+      Data = datagenmod.group_minibatch_generator( **dataParams )
+      Data = Data.next()
+      summaryStr += "\n  %d obs./batch. Each obs has dim %d.\n  %d groups./batch. Avg. %.0f obs/group" \
+                    % (Data['X'].shape[0], Data['X'].shape[1], Data['nGroup'],  Data['X'].shape[0]/Data['nGroup'])     
+      Data = datagenmod.group_minibatch_generator( **dataParams )
+    elif doHMM:
+      Data = datagenmod.sequence_minibatch_generator( **dataParams )
+      Data = Data.next()
+      summaryStr += "\n  %d sequences. Avg. Length = %d. Each obs has dim %d" \
+                     % (Data['nSeq'], np.mean( Data['Tstop']-Data['Tstart'] ),  Data['X'].shape[1])     
+      Data = datagenmod.sequence_minibatch_generator( **dataParams )
+    else:
+      Data = datagenmod.minibatch_generator( **dataParams )
+      Dchunk = Data.next()
+      summaryStr += "\n  %d obs/batch. Each obs has dim %d" \
+                      % (Dchunk['X'].shape[0], Dchunk['X'].shape[1])
+      Data = datagenmod.minibatch_generator( **dataParams )
+  else:
+    if doAdmix:
+      Data = datagenmod.get_data_by_groups( **dataParams )
+      summaryStr = "  %d observations. Each obs has dim %d.\n  %d groups. Avg. %.0f obs/group" \
+                    % (Data['X'].shape[0], Data['X'].shape[1], Data['nGroup'],  Data['X'].shape[0]/Data['nGroup'])     
+    elif doHMM:
+      Data = datagenmod.get_sequence_data( **dataParams )
+      summaryStr = "  %d sequences. Avg. Length = %d. Each obs has dim %d" \
+                     % (Data['nSeq'], np.mean( Data['Tstop']-Data['Tstart'] ),  Data['X'].shape[1])     
+    else:
+      Data = datagenmod.get_data( **dataParams )
+      summaryStr = "  %d observations. Each obs has dim %d. " \
+                     % (Data['X'].shape[0], Data['X'].shape[1])     
+  return Data, summaryStr
+
+def load_test_data( datagenmod, dataParams, doAdmix, doHMM ):
+  ''' Load held-out data for asseessing model generalization
+        Uses same procedure for normal training data,
+         but relies on a different seed to achieve different data 
+  '''
+  testParams = dataParams
+  testParams['seed'] += 1
+  if doAdmix:
+    Dtest = datagenmod.get_data_by_groups( **testParams )
+  elif doHMM:
+    Dtest = datagenmod.get_sequence_data( **testParams )
+  else:
+    Dtest = datagenmod.get_data( **testParams )
+  return Dtest
+
 def main(args):        
     ####################################################### Data Module parsing
     dataParams = dict()
@@ -182,9 +239,7 @@ def main(args):
       dataParams[argName] = args.__getattribute__( argName )
     # Dynamically load module provided by user as data-generator
     datagenmod = __import__( 'data.' + args.datagenModule, fromlist=['data'])
-    if 'print_data_info' in dir( datagenmod ):
-      datagenmod.print_data_info()
-      
+
     ####################################################### Algorithm settings
     algParams = dict()
     for argName in ['initname', 'nIter', 'rhoexp', 'rhodelay', \
@@ -195,7 +250,6 @@ def main(args):
       algName = 'o'+args.algName
     else:
       algName = args.algName
-    print 'Learn Alg:  %s' % (algName)
     
     ####################################################### ExpFam Model Params
     modelParams = dict()
@@ -210,13 +264,25 @@ def main(args):
     else:
       obsPrior = None  
     am = AllocModelConstructor[ args.modelName ]( qType=algName, **modelParams )
-    m = ef.ExpFamModel( am, args.obsName, obsPrior )
-    m.print_model_info()
+    model = ef.ExpFamModel( am, args.obsName, obsPrior )
 
     doAdmix = (args.modelName.count('Admix') + args.modelName.count('HDP') )> 0
+    doHMM = args.modelName.count('HMM') > 0
 
     jobpath = os.path.join(args.datagenModule[:7], args.modelName, algName, args.jobname)
     
+    Data, dataSummaryStr = load_data( datagenmod, dataParams, args.doonline, doAdmix, doHMM )
+
+    if args.dotest:
+      Dtest = load_test_data( datagenmod, dataParams, doAdmix, doHMM)
+
+    # Print Message!
+    if 'print_data_info' in dir( datagenmod ):
+      datagenmod.print_data_info( args.modelName )
+    print 'Data Specs:\n', dataSummaryStr
+    model.print_model_info()
+    print 'Learn Alg:  %s' % (algName)
+
     ####################################################### Spawn individual tasks
     for task in xrange( args.taskid, args.taskid+args.nTask ):    
       seed = hash( args.jobname+str(task) ) % np.iinfo(int).max
@@ -241,41 +307,20 @@ def main(args):
     
 
       ##########################################################  Build Learning Alg
-      '''if args.algName.count('EM')>0:
-        learnAlg = ef.learn.EMLearnAlg( m, **algParams )
-
-      elif args.algName.count('VB')>0:
-        if args.doonline:
-          learnAlg = ef.learn.OnlineVBLearnAlg( m, **algParams )
-        elif args.dobatch:
-          learnAlg = ef.learn.VBLearnAlg( m, **algParams )
-      '''
       if args.doonline:
-        learnAlg = ef.learn.OnlineVBLearnAlg( m, **algParams )
+        learnAlg = ef.learn.OnlineVBLearnAlg( model, **algParams )
       elif args.dobatch:
-        learnAlg = ef.learn.VBLearnAlg( m, **algParams )
+        learnAlg = ef.learn.VBLearnAlg( model, **algParams )
       
-      if args.doonline:
-        if doAdmix:
-          Data = datagenmod.group_minibatch_generator( **dataParams )
-        else:
-          Data = datagenmod.minibatch_generator( **dataParams )
-      else:
-        if doAdmix:
-          Data = datagenmod.get_data_by_groups( **dataParams )
-        else:
-          Data = datagenmod.get_data( **dataParams )
-
+      ##########################################################  Run Learning Alg
       if args.dotest:
-        testParams = dataParams
-        testParams['seed'] += 1
-        if doAdmix:
-          Dtest = datagenmod.get_data_by_groups( **testParams )
-        else:
-          Dtest = datagenmod.get_data( **testParams )
         learnAlg.fit( Data, seed, Dtest=Dtest)
       else:
         learnAlg.fit( Data, seed )
+
+    ##########################################################  Wrap Up
+    if args.doprintfinal:
+      model.print_global_params()
 
 if __name__ == '__main__':
   args = parse_args()

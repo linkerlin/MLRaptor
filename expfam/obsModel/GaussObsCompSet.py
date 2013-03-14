@@ -10,6 +10,7 @@ import numpy as np
 
 from .GaussianDistr import GaussianDistr
 from .GaussWishDistrIndep import GaussWishDistrIndep
+from ..util.MLUtil import np2flatstr
 
 LOGPI = np.log(np.pi)
 LOGTWO = np.log(2.00)
@@ -31,6 +32,12 @@ class GaussObsCompSet( object ):
   
   def get_info_string_prior(self):
     return 'Gaussian on \mu, Wishart on \Lam'
+
+  def get_human_global_param_string(self):
+    if self.qType == 'EM':
+      return '\n'.join( [np2flatstr(self.qobsDistr[k].m, '% 7.2f') for k in xrange(self.K)] )
+    else:
+      return '\n'.join( [np2flatstr(self.qobsDistr[k].muD.m, '% 7.2f') for k in xrange(self.K)] )
 
   def set_obs_dims( self, Data):
     self.D = Data['X'].shape[1]

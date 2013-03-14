@@ -26,8 +26,10 @@ EPS = 10*np.finfo(float).eps
 
 class AdmixModel( object ):
 
-  def __init__( self, K=3, alpha0=1.0, **kwargs):
-    self.qType = 'VB'
+  def __init__( self, K=3, alpha0=1.0, qType='VB', **kwargs):
+    if qType.count('EM')>0:
+      raise ValueError('AdmixModel cannot do EM. Only VB learning possible.')
+    self.qType = qType
     self.K = K
     self.alpha0 = alpha0
 
@@ -95,7 +97,7 @@ class AdmixModel( object ):
     '''
     SS = dict()
     SS['N'] = np.sum( LP['resp'], axis=0 )
-    SS['Nall'] = SS['N'].sum()
+    SS['Ntotal'] = SS['N'].sum()
     return SS
     
   def update_global_params( self, SS, rho=None, **kwargs ):

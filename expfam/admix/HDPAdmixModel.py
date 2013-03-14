@@ -24,8 +24,10 @@ EPS = 10*np.finfo(float).eps
 
 class HDPAdmixModel( object ):
 
-  def __init__( self, K=3, alpha0=1.0, gamma=1.0, truncType='z', **kwargs):
-    self.qType = 'VB'
+  def __init__( self, K=3, alpha0=1.0, gamma=1.0, truncType='z', qType='VB', **kwargs):
+    if qType.count('EM')>0:
+      raise ValueError('HDP cannot do EM. Only VB learning possible.')
+    self.qType = qType
     self.K = K
     self.alpha1 = 1.0
     self.alpha0 = alpha0    
@@ -42,6 +44,17 @@ class HDPAdmixModel( object ):
   def to_string( self ):
     return np2flatstr( self.vstar )
 
+  def get_beta( self):
+    ''' Given internal stick proportions "vstar",
+          calc deterministic mapping to global mixture weights beta
+    '''
+    v = np.hstack( [self.vstar, 1] )
+    c1mv = np.cumprod( 1 - v )
+    c1mv = np.hstack( [1, c1mv] )
+    beta = v * c1mv[:-1]
+    return beta
+
+  ###################################################################  Local Params (Estep)
   def calc_local_params( self, Data, LP):
     ''' E-step
           alternate between these updates until convergence
@@ -88,6 +101,7 @@ class HDPAdmixModel( object ):
     LP['resp'] = resp
     return LP
 
+  ###################################################################  Global Suff Stats
   def get_global_suff_stats( self, Data, SS, LP ):
     ''' 
     '''
@@ -99,7 +113,8 @@ class HDPAdmixModel( object ):
       SS['Elogw'] = self.gamma*self.Ebeta
     SS['G'] = Data['nGroup']
     return SS
-    
+
+  ###################################################################  Global Param Updates (M-step)   
   def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs ):
     ''' Run optimization to find best global stick-proportions v
     '''
@@ -112,19 +127,13 @@ class HDPAdmixModel( object ):
       self.vstar = rho*vstar + (1-rho)*self.vstar
     self.Ebeta = self.get_beta()
     
-  def get_beta( self):
-    v = np.hstack( [self.vstar, 1] )
-    c1mv = np.cumprod( 1 - v )
-    c1mv = np.hstack( [1, c1mv] )
-    beta = v * c1mv[:-1]
-    return beta
 
+  #################################################### VB ELBO computations
   def calc_evidence( self, Data, SS, LP ):
     GroupIDs = Data['GroupIDs']
     return self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP ) \
            + self.E_logpW( LP )   - self.E_logqW(LP)
 
-  #################################################### VB ELBO computations
   def E_logpZ( self, GroupIDs, LP ):
     ElogpZ = 0
     for gg in xrange( len(GroupIDs) ):
