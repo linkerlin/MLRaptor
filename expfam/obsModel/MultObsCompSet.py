@@ -2,14 +2,14 @@
 '''
 import numpy as np
 
-from .BernoulliDistr import BernoulliDistr
-from .BetaDistr import BetaDistr
+from .MultinomialDistr import MultinomialDistr
+from .DirichletDistr import DirichletDistr
 
 EPS = 10*np.finfo(float).eps
 
-class BernObsCompSet( object ):
+class MultObsCompSet( object ):
 
-  def __init__( self, K, qType='EM', obsPrior=None, **kwargs):
+  def __init__( self, K, qType='VB', obsPrior=None, **kwargs):
     self.K = K
     self.qType = qType
     self.obsPrior = obsPrior
@@ -17,16 +17,19 @@ class BernObsCompSet( object ):
     self.D = None
 
   def get_info_string(self):
-    return 'Bernoulli distribution'
+    return 'Multinomial distribution'
   
   def get_info_string_prior(self):
     if self.obsPrior is None:
       return 'None'
     else:
-      return 'Beta'
+      return 'Dirichlet'
 
   def set_obs_dims( self, Data):
-    self.D = Data['X'].shape[1]
+    try:
+      self.D = Data['nVocab']
+    except KeyError:
+      self.D = Data['X'].shape[1]
     if self.obsPrior is not None:
       self.obsPrior.set_dims( self.D )
 
@@ -37,14 +40,20 @@ class BernObsCompSet( object ):
   def get_global_suff_stats( self, Data, SS, LP ):
     ''' Suff Stats
     '''
-    if type(Data) is dict:
-      X = Data['X']
-    else:
-      X = Data
     resp = LP['resp']
-
-    SS['count']   = np.dot( resp.T, X )
+    try:      
+      SS['TermCount']   = np.zeros( (self.K, self.D) )      
+      for docDict in Data['BoW']:
+        self.increment_termcount_from_dict( docDict, SS['TermCount'], resp )
+    except KeyError:      
+      SS['TermCount']   = np.dot( resp.T, Data['X'] )
     return SS
+
+  def increment_termcount_from_dict( self, CDict, TermCountMat, resp ):
+    tokenID = 0
+    for (termID,count) in CDict.items():
+      TermCountMat[:,termID] += resp[tokenID] * count
+      tokenID += 1
 
   ################################################################## Param updates
 
@@ -52,64 +61,49 @@ class BernObsCompSet( object ):
     ''' M-step update
     '''
     if self.qType == 'EM':
-      if rho is None:
         self.update_obs_params_EM( SS)
-      else:
-        self.update_obs_params_EM_stochastic( SS, rho )
+
     elif self.qType.count('VB')>0:
       if rho is None:
         self.update_obs_params_VB( SS )
       else:
         self.update_obs_params_VB_stochastic( SS, rho, Ntotal )
 
-  def update_obs_params_VB( self, SS, **kwargs):
-    for k in xrange( self.K ):      
-      self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['N'][k], SS['count'][k] )
-
-  def update_obs_params_VB_stochastic( self, SS, rho, Ntotal, **kwargs):
-    if Ntotal is None:
-      ampF = 1
-    else:
-      ampF = Ntotal/SS['Ntotal']
-    for k in xrange( self.K ):
-      postDistr = self.obsPrior.getPosteriorDistr( ampF*SS['N'][k], ampF*SS['count'][k] )
-      if self.qobsDistr[k] is None:
-        self.qobsDistr[k] = postDistr
-      else:
-        self.qobsDistr[k].rho_update( rho, postDistr )
-
   def update_obs_params_EM( self, SS, **kwargs):
     for k in xrange( self.K ):      
-      self.qobsDistr[k] = BernoulliDistr( SS['count'][k]/SS['N'][k] )
-      #if self.obsPrior is not None:
-      #  precMat += self.obsPrior.LamPrior.invW
-      #  mean += self.obsPrior.muPrior.m        
-      
+      self.qobsDistr[k] = MultinomialDistr( SS['TermCount'][k]/SS['N'][k] )
+
+  def update_obs_params_VB( self, SS, **kwargs):
+    for k in xrange( self.K):
+      self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['TermCount'][k]/SS['N'][k] )
+
+  def update_obs_params_VB_stochastic( self, SS, rho, Ntotal, **kwargs):
+    pass
       
   #########################################################  Soft Evidence Fcns  
   def calc_local_params( self, Data, LP):
     if self.qType == 'EM':
-      LP['E_log_soft_ev'] = self.log_soft_ev_mat( Data['X'] )
+      LP['E_log_soft_ev'] = self.log_soft_ev_mat( Data )
     else:
-      LP['E_log_soft_ev'] = self.E_log_soft_ev_mat( Data['X'] )
+      LP['E_log_soft_ev'] = self.E_log_soft_ev_mat( Data )
     return LP
 
-  def log_soft_ev_mat( self, X ):
+  def log_soft_ev_mat( self, Data ):
     ''' E-step update,  for EM-type
     '''
     N,D = X.shape
-    lpr = np.empty( (X.shape[0], self.K) )
+    lpr = np.empty( (Data['nObs'], self.K) )
     for k in xrange( self.K ):
-      lpr[:,k] = self.qobsDistr[k].log_pdf( X )
+      lpr[:,k] = self.qobsDistr[k].log_pdf( Data )
     return lpr 
       
   def E_log_soft_ev_mat( self, X ):
     ''' E-step update, for VB-type
     '''
     N,D = X.shape
-    lpr = np.empty( (X.shape[0], self.K) )
+    lpr = np.empty( (Data['nObs'], self.K) )
     for k in xrange( self.K ):
-      lpr[:,k] = self.qobsDistr[k].E_log_pdf( X )
+      lpr[:,k] = self.qobsDistr[k].E_log_pdf( Data )
     return lpr
   
   #########################################################  Evidence Bound Fcns  
@@ -123,17 +117,13 @@ class BernObsCompSet( object ):
     '''
     lpX = np.zeros( self.K )
     for k in xrange( self.K ):
-      cON = SS['count'][k]
-      cOFF = SS['N'][k] - cON
-      lpX[k] = np.sum( cON * self.qobsDistr[k].Elogphi )
-      lpX[k] += np.sum(cOFF*self.qobsDistr[k].Elog1mphi )
+      lpX[k] = np.sum( SS['TermCount'][k] * self.qobsDistr[k].Elogphi )
     return lpX.sum()
     
   def E_logpPhi( self ):
     lp = self.obsPrior.get_log_norm_const()*np.ones( self.K)
     for k in xrange( self.K):
-      lp[k] += np.sum( (self.obsPrior.a - 1)*self.qobsDistr[k].Elogphi )
-      lp[k] += np.sum( (self.obsPrior.b - 1)*self.qobsDistr[k].Elog1mphi )
+      lp[k] += np.sum( (self.obsPrior.lamvec - 1)*self.qobsDistr[k].Elogphi )
     return lp.sum()
           
   def E_logqPhi( self ):

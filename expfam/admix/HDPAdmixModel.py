@@ -73,7 +73,7 @@ class HDPAdmixModel( object ):
       LP = self.get_local_W_params( Data, LP)
       LP = self.get_local_Z_params( Data, LP)
       for gg in range( nGroups ):
-        LP['N_perGroup'][gg,:-1] = np.sum( LP['resp'][ GroupIDs[gg] ], axis=0 )
+        LP['N_perGroup'][gg,:-1] = np.sum( LP['resp'][ GroupIDs[gg][0]:GroupIDs[gg][1] ], axis=0 )
       curVec = LP['alpha_perGroup'].flatten()
       if prevVec is not None and np.allclose( prevVec, curVec ):
         break
@@ -93,7 +93,7 @@ class HDPAdmixModel( object ):
     GroupIDs = Data['GroupIDs']
     lpr = LP['E_log_soft_ev'].copy() # need copy so we can do += later
     for gg in xrange( len(GroupIDs) ):
-      lpr[ GroupIDs[gg] ] += LP['Elogw_perGroup'][gg, :-1]
+      lpr[ GroupIDs[gg][0]:GroupIDs[gg][1] ] += LP['Elogw_perGroup'][gg, :-1]
     lprPerItem = logsumexp( lpr, axis=1 )
     resp   = np.exp( lpr-lprPerItem[:,np.newaxis] )
     #resp   /= resp.sum( axis=1)[:,np.newaxis] # row normalize
@@ -137,7 +137,7 @@ class HDPAdmixModel( object ):
   def E_logpZ( self, GroupIDs, LP ):
     ElogpZ = 0
     for gg in xrange( len(GroupIDs) ):
-      ElogpZ += np.sum( LP['resp'][GroupIDs[gg]] * LP['Elogw_perGroup'][gg,:-1] )
+      ElogpZ += np.sum( LP['resp'][GroupIDs[gg][0]:GroupIDs[gg][1]] * LP['Elogw_perGroup'][gg,:-1] )
     return ElogpZ
     
   def E_logqZ( self, GroupIDs, LP ):

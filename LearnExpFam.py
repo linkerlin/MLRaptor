@@ -132,6 +132,9 @@ AllocModelConstructor = {'MixModel': ef.mix.MixModel, \
 PriorConstr = {'Gaussian': ef.obsModel.GaussWishDistrIndep, \
                'Gauss': ef.obsModel.GaussWishDistrIndep, \
                'Normal': ef.obsModel.GaussWishDistrIndep, \
+               'Multinomial': ef.obsModel.DirichletDistr, \
+               'Mult': ef.obsModel.DirichletDistr, \
+               'Discrete': ef.obsModel.DirichletDistr, \
                'Bern': ef.obsModel.BetaDistr, \
                'Bernoulli': ef.obsModel.BetaDistr}
 

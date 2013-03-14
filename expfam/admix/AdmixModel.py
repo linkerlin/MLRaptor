@@ -41,6 +41,7 @@ class AdmixModel( object ):
     '''
     return ''  
     	    	
+  ###################################################################  Local Params (Estep)
   def calc_local_params( self, Data, LP):
     ''' E-step
           alternate between these updates until convergence
@@ -86,24 +87,28 @@ class AdmixModel( object ):
     assert np.allclose( resp.sum(axis=1), 1)
     LP['resp'] = resp
     return LP
-    
-  def calc_evidence( self, Data, SS, LP ):
-    GroupIDs = Data['GroupIDs']
-    return self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP ) \
-           + self.E_logpW( LP )   - self.E_logqW(LP)
 
+  ###################################################################  Global Sufficient Stats
   def get_global_suff_stats( self, Data, SS, LP ):
-    ''' 
+    ''' Just count expected # assigned to each cluster across all groups, as usual
     '''
     SS = dict()
     SS['N'] = np.sum( LP['resp'], axis=0 )
     SS['Ntotal'] = SS['N'].sum()
     return SS
     
+  ###################################################################  Global Param Updates    
   def update_global_params( self, SS, rho=None, **kwargs ):
-    '''
+    '''Admixtures have no global allocation params! 
+         Mixture weights are group/document specific.
     '''
     pass
+
+  ###################################################################  Evidence/ELBO calculations    
+  def calc_evidence( self, Data, SS, LP ):
+    GroupIDs = Data['GroupIDs']
+    return self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP ) \
+           + self.E_logpW( LP )   - self.E_logqW(LP)
 
   def E_logpZ( self, GroupIDs, LP ):
     ElogpZ = 0

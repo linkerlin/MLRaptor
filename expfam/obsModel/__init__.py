@@ -11,8 +11,12 @@ from .BernoulliDistr import BernoulliDistr
 from .BetaDistr import BetaDistr
 from .BernObsCompSet import BernObsCompSet
 
+from .MultinomialDistr import MultinomialDistr
+from .DirichletDistr import DirichletDistr
+from .MultObsCompSet import MultObsCompSet
+
 from .GaussObsCompSet import GaussObsCompSet
 
 __all__ = ['GaussianDistr', 'GaussWishDistrIndep', 'WishartDistr', \
             'BernoulliDistr', 'BetaDistr', 'BernObsCompSet', \
-           'GaussObsCompSet']
+           'GaussObsCompSet', 'MultinomialDistr', 'MultObsCompSet','DirichletDistr']

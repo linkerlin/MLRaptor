@@ -31,7 +31,10 @@ class GaussObsCompSet( object ):
     return 'Gaussian distribution'
   
   def get_info_string_prior(self):
-    return 'Gaussian on \mu, Wishart on \Lam'
+    if self.obsPrior is None:
+      return 'None'
+    else:
+      return 'Gaussian on \mu, Wishart on \Lam'
 
   def get_human_global_param_string(self):
     if self.qType == 'EM':
