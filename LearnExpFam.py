@@ -180,44 +180,52 @@ def parse_args():
     parser.add_argument( '--saveEvery', type=int, default=10 )
     return parser.parse_args()
 
+def get_data_summary( Data, doAdmix, doHMM):
+  try:
+    nObs = Data['X'].shape[0]
+    nDim    = Data['X'].shape[1]    
+  except KeyError:
+    nObs = Data['nObs']
+    nDim = Data['nVocab']
+  if doAdmix:
+      summaryStr = "  %d observations. Each obs has dim %d.\n  %d groups. Avg. %.0f obs/group" \
+                    % (nObs, nDim, Data['nGroup'], nObs/Data['nGroup'])   
+  elif doHMM:
+      summaryStr = "  %d sequences. Avg. Length = %d. Each obs has dim %d" \
+                     % (Data['nSeq'], np.mean( Data['Tstop']-Data['Tstart'] ), nDim)    
+  else:
+      summaryStr = "  %d observations. Each obs has dim %d. " \
+                     % (nObs, nDim)
+  return summaryStr
+
 def load_data( datagenmod, dataParams, doOnline, doAdmix, doHMM):
   ''' Load training data from user-provided data "generation" module
        which we assume implements the appropriate generating function
       e.g. "get_data" or "get_sequence_data"
   '''
   if doOnline:
-    summaryStr = "  Streaming data! %d batches, %d repetitions" % ( dataParams['nBatch'], dataParams['nRep'])
     if doAdmix:
       Data = datagenmod.group_minibatch_generator( **dataParams )
-      Data = Data.next()
-      summaryStr += "\n  %d obs./batch. Each obs has dim %d.\n  %d groups./batch. Avg. %.0f obs/group" \
-                    % (Data['X'].shape[0], Data['X'].shape[1], Data['nGroup'],  Data['X'].shape[0]/Data['nGroup'])     
+      Dchunk = Data.next()
       Data = datagenmod.group_minibatch_generator( **dataParams )
     elif doHMM:
       Data = datagenmod.sequence_minibatch_generator( **dataParams )
-      Data = Data.next()
-      summaryStr += "\n  %d sequences. Avg. Length = %d. Each obs has dim %d" \
-                     % (Data['nSeq'], np.mean( Data['Tstop']-Data['Tstart'] ),  Data['X'].shape[1])     
+      Dchunk = Data.next()
       Data = datagenmod.sequence_minibatch_generator( **dataParams )
     else:
       Data = datagenmod.minibatch_generator( **dataParams )
       Dchunk = Data.next()
-      summaryStr += "\n  %d obs/batch. Each obs has dim %d" \
-                      % (Dchunk['X'].shape[0], Dchunk['X'].shape[1])
       Data = datagenmod.minibatch_generator( **dataParams )
+    summaryStr = "  Streaming data! %d batches, %d repetitions" % ( dataParams['nBatch'], dataParams['nRep'])
+    summaryStr += get_data_summary( Dchunk, doAdmix, doHMM )
   else:
     if doAdmix:
-      Data = datagenmod.get_data_by_groups( **dataParams )
-      summaryStr = "  %d observations. Each obs has dim %d.\n  %d groups. Avg. %.0f obs/group" \
-                    % (Data['X'].shape[0], Data['X'].shape[1], Data['nGroup'],  Data['X'].shape[0]/Data['nGroup'])     
+      Data = datagenmod.get_data_by_groups( **dataParams )  
     elif doHMM:
-      Data = datagenmod.get_sequence_data( **dataParams )
-      summaryStr = "  %d sequences. Avg. Length = %d. Each obs has dim %d" \
-                     % (Data['nSeq'], np.mean( Data['Tstop']-Data['Tstart'] ),  Data['X'].shape[1])     
+      Data = datagenmod.get_sequence_data( **dataParams ) 
     else:
-      Data = datagenmod.get_data( **dataParams )
-      summaryStr = "  %d observations. Each obs has dim %d. " \
-                     % (Data['X'].shape[0], Data['X'].shape[1])     
+      Data = datagenmod.get_data( **dataParams )  
+    summaryStr = get_data_summary( Data, doAdmix, doHMM )
   return Data, summaryStr
 
 def load_test_data( datagenmod, dataParams, doAdmix, doHMM ):

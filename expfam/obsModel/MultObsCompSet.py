@@ -5,6 +5,8 @@ import numpy as np
 from .MultinomialDistr import MultinomialDistr
 from .DirichletDistr import DirichletDistr
 
+from ..util.MLUtil import np2flatstr
+
 EPS = 10*np.finfo(float).eps
 
 class MultObsCompSet( object ):
@@ -24,6 +26,14 @@ class MultObsCompSet( object ):
       return 'None'
     else:
       return 'Dirichlet'
+
+  def get_human_global_param_string(self):
+    ''' No global parameters! So just return blank line
+    '''
+    try:
+      return '\n'.join( [np2flatstr(self.qobsDistr[k].phi) for k in xrange(self.K)] )
+    except:
+      return '\n'.join( [np2flatstr(self.qobsDistr[k].lamvec/self.qobsDistr[k].lamsum) for k in xrange(self.K)] )
 
   def set_obs_dims( self, Data):
     try:
@@ -75,7 +85,7 @@ class MultObsCompSet( object ):
 
   def update_obs_params_VB( self, SS, **kwargs):
     for k in xrange( self.K):
-      self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['TermCount'][k]/SS['N'][k] )
+      self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['TermCount'][k] )
 
   def update_obs_params_VB_stochastic( self, SS, rho, Ntotal, **kwargs):
     pass
@@ -91,17 +101,15 @@ class MultObsCompSet( object ):
   def log_soft_ev_mat( self, Data ):
     ''' E-step update,  for EM-type
     '''
-    N,D = X.shape
-    lpr = np.empty( (Data['nObs'], self.K) )
+    lpr = np.empty( (Data['nObsEntry'], self.K) )
     for k in xrange( self.K ):
       lpr[:,k] = self.qobsDistr[k].log_pdf( Data )
     return lpr 
       
-  def E_log_soft_ev_mat( self, X ):
+  def E_log_soft_ev_mat( self, Data ):
     ''' E-step update, for VB-type
     '''
-    N,D = X.shape
-    lpr = np.empty( (Data['nObs'], self.K) )
+    lpr = np.empty( (Data['nObsEntry'], self.K) )
     for k in xrange( self.K ):
       lpr[:,k] = self.qobsDistr[k].E_log_pdf( Data )
     return lpr
@@ -109,8 +117,7 @@ class MultObsCompSet( object ):
   #########################################################  Evidence Bound Fcns  
   def calc_evidence( self, Data, SS, LP):
     if self.qType == 'EM': return 0 # handled by alloc model
-    return self.E_logpX( LP, SS) \
-           + self.E_logpPhi() - self.E_logqPhi()
+    return 0 #self.E_logpX( LP, SS) #           + self.E_logpPhi() - self.E_logqPhi()
   
   def E_logpX( self, LP, SS ):
     ''' E_{q(Z), q(Phi)} [ log p(X) ]

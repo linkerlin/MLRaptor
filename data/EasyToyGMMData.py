@@ -117,8 +117,8 @@ def get_data_by_groups( seed=8675309, nPerGroup=5000, nGroup=5, **kwargs ):
       Xlist.append(  sample_data_from_comp( k, nPerComp[k])  )
     Xgroup = np.vstack( Xlist )
 
-    GroupIDs.append(  (gg*nPerGroup) + np.arange( 0, nPerGroup ) )
-    X[ GroupIDs[gg] ] = Xgroup
+    GroupIDs.append(  (gg*nPerGroup, gg*nPerGroup+nPerGroup)  )
+    X[ GroupIDs[gg][0]:GroupIDs[gg][1] ] = Xgroup
     TrueW_perGroup.append( w )
   Data = dict()
   Data['X'] = X

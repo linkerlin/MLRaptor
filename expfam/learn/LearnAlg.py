@@ -13,6 +13,7 @@ import numpy as np
 import time
 import os
 
+from ..init.MultObsSetInitializer import MultObsSetInitializer
 from ..init.GaussObsSetInitializer import GaussObsSetInitializer
 
 class LearnAlg(object):
@@ -43,7 +44,10 @@ class LearnAlg(object):
     elif obsType.count('Bern') > 0:
       InitEngine = GaussObsSetInitializer( initname=self.initname, seed=seed)
       InitEngine.init_global_params( self.expfamModel, Data )
-      
+    elif obsType.count('Mult') > 0:
+      InitEngine = MultObsSetInitializer( initname=self.initname, seed=seed)
+      InitEngine.init_global_params( self.expfamModel, Data )
+
   def fit( self, Data, seed):
     pass
 

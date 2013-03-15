@@ -41,6 +41,8 @@ class ExpFamModel( object ):
         self.obsModel   = GaussObsCompSet( allocModel.K, allocModel.qType, obsPrior)
       if obsModelName == 'Bernoulli':
         self.obsModel   = BernObsCompSet( allocModel.K, allocModel.qType, obsPrior)
+      if obsModelName.count( 'Mult' ) >0:
+        self.obsModel   = MultObsCompSet( allocModel.K, allocModel.qType, obsPrior)
     else:
       self.obsModel = obsModelName
   
