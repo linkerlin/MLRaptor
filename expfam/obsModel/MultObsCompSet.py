@@ -17,6 +17,7 @@ class MultObsCompSet( object ):
     self.obsPrior = obsPrior
     self.qobsDistr = [None for k in xrange(K)]
     self.D = None
+    print 'qType:', qType
 
   def get_info_string(self):
     return 'Multinomial distribution'
@@ -27,13 +28,13 @@ class MultObsCompSet( object ):
     else:
       return 'Dirichlet'
 
-  def get_human_global_param_string(self):
+  def get_human_global_param_string(self, fmtStr='%3.2f'):
     ''' No global parameters! So just return blank line
     '''
     try:
-      return '\n'.join( [np2flatstr(self.qobsDistr[k].phi) for k in xrange(self.K)] )
+      return '\n'.join( [np2flatstr(self.qobsDistr[k].phi, fmtStr) for k in xrange(self.K)] )
     except:
-      return '\n'.join( [np2flatstr(self.qobsDistr[k].lamvec/self.qobsDistr[k].lamsum) for k in xrange(self.K)] )
+      return '\n'.join( [np2flatstr(self.qobsDistr[k].lamvec/self.qobsDistr[k].lamsum, fmtStr) for k in xrange(self.K)] )
 
   def set_obs_dims( self, Data):
     try:
@@ -52,19 +53,19 @@ class MultObsCompSet( object ):
     '''
     resp = LP['resp']
     try:      
-      SS['TermCount']   = np.zeros( (self.K, self.D) )      
+      #TermCountMat = np.dot( resp.T, Data['countvec'] )
+      TermCountMat  = np.zeros( (self.K, self.D) )      
+      tokenID = 0
       for docDict in Data['BoW']:
-        self.increment_termcount_from_dict( docDict, SS['TermCount'], resp )
+        for termID,count in docDict.items():
+          TermCountMat[:,termID] += resp[tokenID] * count
+          tokenID += 1
+      assert np.allclose(Data['nObs'],TermCountMat.sum() )
+      SS['TermCount'] = TermCountMat
     except KeyError:      
       SS['TermCount']   = np.dot( resp.T, Data['X'] )
     return SS
-
-  def increment_termcount_from_dict( self, CDict, TermCountMat, resp ):
-    tokenID = 0
-    for (termID,count) in CDict.items():
-      TermCountMat[:,termID] += resp[tokenID] * count
-      tokenID += 1
-
+  
   ################################################################## Param updates
 
   def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs):
@@ -116,8 +117,9 @@ class MultObsCompSet( object ):
   
   #########################################################  Evidence Bound Fcns  
   def calc_evidence( self, Data, SS, LP):
-    if self.qType == 'EM': return 0 # handled by alloc model
-    return 0 #self.E_logpX( LP, SS) #           + self.E_logpPhi() - self.E_logqPhi()
+    if self.qType == 'EM':
+      return 0 # handled by alloc model
+    return self.E_logpX( LP, SS) + self.E_logpPhi() - self.E_logqPhi()
   
   def E_logpX( self, LP, SS ):
     ''' E_{q(Z), q(Phi)} [ log p(X) ]

@@ -20,7 +20,7 @@
 
 import numpy as np
 from scipy.special import gammaln, digamma
-from ..util.MLUtil import logsumexp
+from ..util.MLUtil import logsumexp, np2flatstr
 
 EPS = 10*np.finfo(float).eps
 
@@ -34,12 +34,15 @@ class AdmixModel( object ):
     self.alpha0 = alpha0
 
   def get_info_string( self):
-    return 'Finite admixture model with %d components' % (self.K)
+    return 'Finite admixture model with %d components | alpha=%.2f' % (self.K, self.alpha0)
 
   def get_human_global_param_string(self):
     ''' No global parameters! So just return blank line
     '''
-    return ''
+    mystr = ''
+    for rowID in xrange(3):
+      mystr += np2flatstr( np.exp(self.Elogw[rowID]), '%3.2f') + '\n'
+    return mystr
 
   def to_string( self):
     ''' No global parameters! So just return blank line
@@ -64,8 +67,15 @@ class AdmixModel( object ):
     for rep in xrange( 10 ):
       LP = self.get_local_W_params( Data, LP)
       LP = self.get_local_Z_params( Data, LP)
-      for gg in range( nGroups ):
-        LP['N_perGroup'][gg] = np.sum( LP['resp'][ GroupIDs[gg][0]:GroupIDs[gg][1] ], axis=0 )
+      if 'countvec' in Data:
+        for gg in range( nGroups ):
+          groupResp = Data['countvec'][ GroupIDs[gg][0]:GroupIDs[gg][1]][:,np.newaxis] \
+                          * LP['resp'][ GroupIDs[gg][0]:GroupIDs[gg][1]]
+          LP['N_perGroup'][gg] = np.sum( groupResp, axis=0 )
+      else:
+        for gg in range( nGroups ):
+          groupResp = LP['resp'][ GroupIDs[gg][0]:GroupIDs[gg][1] ]
+          LP['N_perGroup'][gg] = np.sum( groupResp, axis=0 )
       curVec = LP['alpha_perGroup'].flatten()
       if prevVec is not None and np.allclose( prevVec, curVec ):
         break
@@ -79,6 +89,7 @@ class AdmixModel( object ):
     LP['alpha_perGroup'] = alpha_perGroup
     LP['Elogw_perGroup'] = digamma( alpha_perGroup ) \
                              - digamma( alpha_perGroup.sum(axis=1) )[:,np.newaxis]
+    self.Elogw = LP['Elogw_perGroup']
     return LP
     
   def get_local_Z_params( self, Data, LP):
@@ -93,27 +104,29 @@ class AdmixModel( object ):
     LP['resp'] = resp
     return LP
 
-  ###################################################################  Global Sufficient Stats
+  ##############################################################  Global Sufficient Stats
   def get_global_suff_stats( self, Data, SS, LP ):
     ''' Just count expected # assigned to each cluster across all groups, as usual
     '''
-    SS = dict()
-    SS['N'] = np.sum( LP['resp'], axis=0 )
+    if 'countvec' in Data:
+      SS['N'] = np.sum( Data['countvec'][:,np.newaxis]*LP['resp'], axis=0 )
+    else:
+      SS['N'] = np.sum( LP['resp'], axis=0 )
     SS['Ntotal'] = SS['N'].sum()
     return SS
     
-  ###################################################################  Global Param Updates    
+  ##############################################################  Global Param Updates    
   def update_global_params( self, SS, rho=None, **kwargs ):
     '''Admixtures have no global allocation params! 
          Mixture weights are group/document specific.
     '''
     pass
 
-  ###################################################################  Evidence/ELBO calculations    
+  ##############################################################  Evidence/ELBO calc.
   def calc_evidence( self, Data, SS, LP ):
     GroupIDs = Data['GroupIDs']
     return self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP ) \
-           + self.E_logpW( LP )   - self.E_logqW(LP)
+                 + self.E_logpW( LP )   - self.E_logqW(LP)
 
   def E_logpZ( self, GroupIDs, LP ):
     ElogpZ = 0
@@ -122,9 +135,6 @@ class AdmixModel( object ):
     return ElogpZ
     
   def E_logqZ( self, GroupIDs, LP ):
-    #ElogqZ = 0
-    #for gg in xrange( len(GroupIDs) ):
-    #  ElogqZ += np.sum( LP['resp'][GroupIDs[gg]] * np.log(EPS+LP['resp'][GroupIDs[gg]]) )
     ElogqZ = np.sum( LP['resp'] * np.log(EPS+LP['resp'] ) )
     return  ElogqZ    
 

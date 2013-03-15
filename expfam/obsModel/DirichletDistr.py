@@ -11,9 +11,6 @@ import scipy.linalg
 from scipy.special import digamma, gammaln
 
 
-# DEFAULT parameter value (symmetric) promotes just a little sparsity
-lambdaDEF = 0.5
-
 class DirichletDistr(object):
 
   def __init__(self, lamvec=None):
@@ -24,7 +21,7 @@ class DirichletDistr(object):
 
   def set_dims( self, D ):
     self.D = D
-    self.lamvec = lambdaDEF* np.ones( D )
+    self.lamvec = 1.0 * np.ones( D )
     self.set_helpers()
     
   def set_helpers(self):
@@ -32,7 +29,6 @@ class DirichletDistr(object):
     self.digammalamvec = digamma(self.lamvec)
     self.digammalamsum = digamma(self.lamsum)
     self.Elogphi   = self.digammalamvec - self.digammalamsum
-    #self.Ephi = self.lamvec/self.lamsum
 
   def getPosteriorDistr( self, TermCountVec ):
     return DirichletDistr( self.lamvec + TermCountVec )
@@ -41,7 +37,7 @@ class DirichletDistr(object):
     ''' Returns log( 1/Z ) = -log(Z), 
          where p( phi | a,b) = 1/Z(a,b) f(phi)
     '''
-    return np.sum(gammaln(self.lamvec )) - gammaln( self.lamsum )
+    return gammaln( self.lamsum ) - np.sum(gammaln(self.lamvec ))
 
   def get_entropy(self):
     H = -1*self.get_log_norm_const()
@@ -62,5 +58,6 @@ class DirichletDistr(object):
     for docCDict in Data['BoW']:
       for (wID,count) in docCDict.items():
         lpr[tokenID] = count*self.Elogphi[wID]
+        assert count == Data['countvec'][tokenID]
         tokenID += 1
     return lpr

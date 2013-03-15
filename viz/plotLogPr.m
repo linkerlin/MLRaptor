@@ -1,5 +1,5 @@
 function [] = plotLogPr( dataName, modelName, infName, jobName, taskIDs )
-DUMPROOT = '/home/mhughes/git/MLRaptor/results';
+DUMPROOT = '../results';
 
 
 DUMPDIR = fullfile( DUMPROOT, dataName, modelName, infName, jobName );

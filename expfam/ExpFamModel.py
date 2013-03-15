@@ -69,8 +69,9 @@ class ExpFamModel( object ):
     return self.allocModel.calc_evidence( Data, SS, LP) \
           + self.obsModel.calc_evidence( Data, SS, LP)
    
-  def calc_local_params( self, Data):
-    LP = dict()
+  def calc_local_params( self, Data, LP=None):
+    if LP is None:
+      LP = dict()
     LP = self.obsModel.calc_local_params( Data, LP ) #collect log soft evidence
     LP = self.allocModel.calc_local_params( Data, LP )
     return LP

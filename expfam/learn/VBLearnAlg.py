@@ -18,8 +18,7 @@ class VBLearnAlg( LearnAlg ):
     self.start_time = time.time()
     status = "max iters reached."
     prevBound = -np.inf
-    evBound = -np.inf
-
+    evBound = -1
     for iterid in xrange(self.Niter):
       if iterid==0:
         self.init_global_params( Data, seed )        
@@ -31,8 +30,7 @@ class VBLearnAlg( LearnAlg ):
       LP = self.expfamModel.calc_local_params( Data )
 
       SS = self.expfamModel.get_global_suff_stats( Data, LP )
-      if iterid % self.evidenceEvery == 0:
-        evBound = self.calc_evidence( Data, SS, LP )
+      evBound = self.calc_evidence( Data, SS, LP )
 
       # Save and display progress
       self.save_state(iterid, evBound)
