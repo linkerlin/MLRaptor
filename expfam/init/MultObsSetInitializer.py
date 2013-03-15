@@ -58,28 +58,40 @@ class MultObsSetInitializer( object ):
   def init_resp_kmeans( self, Data, K):
     '''  Select K documents via kmeans, and then use these as centers
     '''
-    X = np.zeros( (Data['nGroup'],Data['nVocab']) )
-    for docID in xrange( Data['nGroup'] ):
-      for wID,count in Data['BoW'][docID].items():
-        X[docID,wID] = count
+    try:
+      X = Data['X']
+    except KeyError:
+      X = np.zeros( (Data['nGroup'],Data['nVocab']) )
+      for docID in xrange( Data['nGroup'] ):
+        for wID,count in Data['BoW'][docID].items():
+          X[docID,wID] = count
     scipy.random.seed( self.seed )
     Phi, Z = scipy.cluster.vq.kmeans2( X, K, iter=25, minit='points' )
+    Phi += 1e-5
     return self.calc_resp_given_topic_word_param( Data,Phi,K)
   
   def init_resp_randsample( self, Data, K):
     '''  Select K documents at "random" and use these as centers
     '''
     random.seed( self.seed)
-    docIDs = random.sample( xrange(Data['nGroup']), K )
-    Phi = 0.01*np.random.rand(K, Data['nVocab'])
-    for kk,docID in enumerate(docIDs):
-      for wID,count in Data['BoW'][docID].items():
-        Phi[kk,wID] = count
+    try:
+      docIDs = random.sample( xrange( Data['X'].shape[0]),K)      
+      Phi = Data['X'][ docIDs,:]
+      Phi += 1e-5
+    except KeyError:
+      docIDs = random.sample( xrange(Data['nGroup']), K )
+      Phi = 0.01*np.random.rand(K, Data['nVocab'])
+      for kk,docID in enumerate(docIDs):
+        for wID,count in Data['BoW'][docID].items():
+          Phi[kk,wID] = count
     return self.calc_resp_given_topic_word_param( Data,Phi,K)
     
   def calc_resp_given_topic_word_param( self, Data, Phi,K): 
+    try:
+      lpr = np.zeros( (Data['nObsEntry'],K) )
+    except KeyError:
+      lpr = np.zeros( (Data['nObs'],K) )
     Phi /= Phi.sum(axis=1)[:,np.newaxis]
-    lpr = np.zeros( (Data['nObsEntry'],K) )
     for kk in xrange(K):
       MyDirDistr = DirichletDistr( Phi[kk] )
       lpr[:,kk] = MyDirDistr.E_log_pdf( Data )
@@ -90,7 +102,10 @@ class MultObsSetInitializer( object ):
     
   def init_resp_random( self, Data, K):
     np.random.seed( self.seed)
-    resp = np.random.rand( Data['nObsEntry'], K )
+    try:
+      resp = np.random.rand( Data['nObsEntry'], K )
+    except KeyError:
+      resp = np.random.rand( Data['nObs'], K )
     resp /= resp.sum(axis=1)[:,np.newaxis]
     return resp
 

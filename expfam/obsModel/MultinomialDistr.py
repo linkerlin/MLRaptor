@@ -12,6 +12,8 @@ import numpy as np
 import scipy.linalg
 from scipy.special import digamma, gammaln
 
+EPS = 10*np.finfo(float).eps
+
 class MultinomialDistr(object):
  
   def disp(self):
@@ -31,7 +33,7 @@ class MultinomialDistr(object):
     self.set_helpers()
     
   def set_helpers( self):
-    self.logphi = np.log( self.phi)
+    self.logphi = np.log( EPS+self.phi)
     
   def get_log_norm_const( self ):
     '''Calculate log normalization constant
@@ -41,11 +43,9 @@ class MultinomialDistr(object):
   def log_pdf( self, Data ):
     '''
     '''
-    try:
-      return log_pdf_from_dict( Data['BoW'] )
-    except KeyError:
-      return log_pdf_from_mat( Data['X'] )
+    return np.sum( Data['X']*self.logphi, axis=1)
 
+'''
   def log_pdf_from_dict( self, BoW ):
     lpr = np.zeros( Data['nObs'] )
     tokenID=0
@@ -54,13 +54,4 @@ class MultinomialDistr(object):
         lpr[tokenID] = count*self.logphi[wID]
         tokenID += 1
     return lpr
- 
-  def log_pdf_from_mat( self, X ):
-    return np.sum( X*self.logphi, axis=1)
-
-    
-###############################################################################
-def np2flatstr( X, fmt='% .6f' ):
-  return ' '.join( [fmt % x for x in X.flatten() ] )  
-  
-     
+'''    

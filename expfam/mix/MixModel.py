@@ -34,7 +34,13 @@ class MixModel( object ):
       return np2flatstr( self.w )
       
   def get_info_string( self):
-    return 'Finite mixture model with %d components' % (self.K)
+    return 'Finite mixture model with %d components. Dir prior param %.2f' % (self.K, self.alpha0)
+
+  def get_human_global_param_string(self):
+    if self.qType == 'EM':
+      return np2flatstr( self.w, '%3.2f' )
+    else:
+      return np2flatstr( np.exp(self.Elogw), '%3.2f' )
 
   ############################################################## LP/SS Updates   
   def calc_local_params( self, Data, LP ):

@@ -7,7 +7,7 @@ from .DirichletDistr import DirichletDistr
 
 from ..util.MLUtil import np2flatstr
 
-EPS = 10*np.finfo(float).eps
+EPS = np.finfo(float).eps
 
 class MultObsCompSet( object ):
 
@@ -17,7 +17,6 @@ class MultObsCompSet( object ):
     self.obsPrior = obsPrior
     self.qobsDistr = [None for k in xrange(K)]
     self.D = None
-    print 'qType:', qType
 
   def get_info_string(self):
     return 'Multinomial distribution'
@@ -29,11 +28,9 @@ class MultObsCompSet( object ):
       return 'Dirichlet'
 
   def get_human_global_param_string(self, fmtStr='%3.2f'):
-    ''' No global parameters! So just return blank line
-    '''
-    try:
+    if self.qType == 'EM':
       return '\n'.join( [np2flatstr(self.qobsDistr[k].phi, fmtStr) for k in xrange(self.K)] )
-    except:
+    else:
       return '\n'.join( [np2flatstr(self.qobsDistr[k].lamvec/self.qobsDistr[k].lamsum, fmtStr) for k in xrange(self.K)] )
 
   def set_obs_dims( self, Data):
@@ -53,7 +50,9 @@ class MultObsCompSet( object ):
     '''
     resp = LP['resp']
     try:      
-      #TermCountMat = np.dot( resp.T, Data['countvec'] )
+      SS['TermCount'] = np.dot( resp.T, Data['X'] )
+      return SS
+    except KeyError:
       TermCountMat  = np.zeros( (self.K, self.D) )      
       tokenID = 0
       for docDict in Data['BoW']:
@@ -62,18 +61,14 @@ class MultObsCompSet( object ):
           tokenID += 1
       assert np.allclose(Data['nObs'],TermCountMat.sum() )
       SS['TermCount'] = TermCountMat
-    except KeyError:      
-      SS['TermCount']   = np.dot( resp.T, Data['X'] )
     return SS
   
   ################################################################## Param updates
-
   def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs):
     ''' M-step update
     '''
     if self.qType == 'EM':
         self.update_obs_params_EM( SS)
-
     elif self.qType.count('VB')>0:
       if rho is None:
         self.update_obs_params_VB( SS )
@@ -81,8 +76,10 @@ class MultObsCompSet( object ):
         self.update_obs_params_VB_stochastic( SS, rho, Ntotal )
 
   def update_obs_params_EM( self, SS, **kwargs):
-    for k in xrange( self.K ):      
-      self.qobsDistr[k] = MultinomialDistr( SS['TermCount'][k]/SS['N'][k] )
+    phiHat = SS['TermCount']
+    phiHat = phiHat/( EPS+ phiHat.sum(axis=1)[:,np.newaxis] )
+    for k in xrange( self.K ):
+      self.qobsDistr[k] = MultinomialDistr( phiHat[k] )
 
   def update_obs_params_VB( self, SS, **kwargs):
     for k in xrange( self.K):
@@ -102,15 +99,21 @@ class MultObsCompSet( object ):
   def log_soft_ev_mat( self, Data ):
     ''' E-step update,  for EM-type
     '''
-    lpr = np.empty( (Data['nObsEntry'], self.K) )
+    try:
+      lpr = np.empty( (Data['nObsEntry'], self.K) )
+    except KeyError:
+      lpr = np.empty( (Data['nObs'], self.K) )
     for k in xrange( self.K ):
       lpr[:,k] = self.qobsDistr[k].log_pdf( Data )
-    return lpr 
+    return lpr
       
   def E_log_soft_ev_mat( self, Data ):
     ''' E-step update, for VB-type
     '''
-    lpr = np.empty( (Data['nObsEntry'], self.K) )
+    try:
+      lpr = np.empty( (Data['nObsEntry'], self.K) )
+    except KeyError:
+      lpr = np.empty( (Data['nObs'], self.K) )
     for k in xrange( self.K ):
       lpr[:,k] = self.qobsDistr[k].E_log_pdf( Data )
     return lpr

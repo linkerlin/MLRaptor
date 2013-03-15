@@ -12,10 +12,10 @@ np.set_printoptions( precision=2, suppress=True)
 
 K = 10
 V = 25
-D = 500
-Nperdoc = 200
+D = 1500
+Nperdoc = 100
 alpha = 0.1
-beta  = 0.125
+beta  = 0.05 #125
 
 w = np.ones( K )
 w /= w.sum()
@@ -30,6 +30,14 @@ for kk in xrange( K/2):
   Phi[sqrtV+kk, colRange] = 1.0
 
 Phi /= Phi.sum(axis=1)[:,np.newaxis]
+
+def sample_data_as_mat():
+  DocTermMat = np.zeros( (D,V) )
+  TrueW = np.zeros( (D,K) )
+  for docID in xrange(D):
+    zID = np.where( np.random.multinomial( 1.0, w) )[0][0]
+    DocTermMat[docID,:] = np.random.multinomial( Nperdoc, Phi[zID] )
+  return DocTermMat, TrueW
 
 def sample_data_as_dict():
   BoW = list()
@@ -55,25 +63,29 @@ def sample_data_as_dict():
     BoW.append( docDict)
     TrueW[docID] = w
   return BoW, nObs, nTotalEntry, GroupIDs, TrueW
-
-def sample_data_as_matrix( Npercomp ):
-  X = np.zeros( (Npercomp.sum(), V) )  
-  for k in range(K):
-    wordCounts =np.random.multinomial(  Npercomp[k], Phi[k] )
-    for (vv,count) in enumerate( wordCounts):
-      X[ rowID, vv] = count
-  return {'X':X, 'nObs':X.shape[0]}
   
 def print_data_info( modelName ):
   print 'Easy-to-learn toy data for K=3 Bernoulli Obs Model'
   print '  Mix weights:  '
-  for rowID in xrange( 3):
-    print '                ', np2flatstr( TrueW[rowID], '%3.2f' )
+  if modelName.count( 'Admix')>0:
+    for rowID in xrange( 3):
+      print '                ', np2flatstr( TrueW[rowID], '%3.2f' )
+  else:
+      print '                ', np2flatstr( w, '%3.2f' )
   print '  Topic-word Probs:  '
   for k in range( K ):
     print '                ', np2flatstr( Phi[k], '%4.2f' )
 
 #######################################################################  Mixture data
+def get_data( seed=8675309, **kwargs ):
+  if seed is not None:
+    np.random.seed( seed )
+  X,TrueW= sample_data_as_mat()
+  Data = dict( X=X, nObs=X.shape[0], nVocab=V, TrueW=TrueW)
+  return Data
+
+
+#######################################################################  Admixture data
 def get_data_by_groups( seed=8675309, **kwargs ):
   if seed is not None:
     np.random.seed( seed )

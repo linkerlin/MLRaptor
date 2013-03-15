@@ -21,7 +21,7 @@ class DirichletDistr(object):
 
   def set_dims( self, D ):
     self.D = D
-    self.lamvec = 1.0 * np.ones( D )
+    self.lamvec = 1.0/D * np.ones( D )
     self.set_helpers()
     
   def set_helpers(self):
@@ -50,7 +50,7 @@ class DirichletDistr(object):
     try:
       return self.log_pdf_from_dict( Data )
     except KeyError:
-      return self.log_pdf_from_mat( Data['X'] )
+      return np.dot( Data['X'], self.Elogphi )
 
   def log_pdf_from_dict( self, Data ):
     lpr = np.zeros( Data['nObsEntry'] )

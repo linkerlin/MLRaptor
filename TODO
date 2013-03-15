@@ -1,0 +1,3 @@
+ALLOCATION MODEL ---------------
+
+Change GroupIDs so it uses only nGroup+1 space, not 2*nGroup
