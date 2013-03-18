@@ -50,15 +50,6 @@ class GaussObsSetInitializer( object ):
     SS = expfamModel.get_global_suff_stats( Data, LP )
     expfamModel.update_global_params( SS )
     
-
-  '''
-  def init_params_perGroup(self, Data, LP ):
-    GroupIDs = Data['GroupIDs']
-    LP['N_perGroup'] = np.zeros( (len(GroupIDs),self.expfamModel.K)  )
-    for gg in range( len(GroupIDs) ):
-      LP['N_perGroup'][gg] = np.sum( LP['resp'][ GroupIDs[gg] ], axis=0 )
-    return LP
-  '''
 ##################################################### Initialization methods
   def init_resp( self, X, K ):
     '''Initialize cluster responsibility matrix given data matrix X.
@@ -70,6 +61,8 @@ class GaussObsSetInitializer( object ):
     '''
     if self.initname == 'kmeans':
       resp,lpr = self.get_kmeans_resp( X, K )
+    elif self.initname == 'randsample':
+      resp,lpr = self.get_randsample_resp( X, K )
     elif self.initname == 'random':
       resp,lpr = self.get_random_resp( X, K )
     return resp, lpr
@@ -98,7 +91,11 @@ class GaussObsSetInitializer( object ):
     resp,lpr = self.get_resp_from_distance_matrix( Dist )
     return resp, lpr
 
-  def get_random_resp( self, X, K ):
+  def get_random_resp( self, X, K):
+    resp = np.random.rand( X.shape[0], K )
+    return resp, np.log(resp)
+
+  def get_randsample_resp( self, X, K ):
     ''' Random sampling initialization of cluster responsibilities.
            
         Params

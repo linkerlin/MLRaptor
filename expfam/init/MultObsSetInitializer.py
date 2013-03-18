@@ -3,6 +3,7 @@ import numpy as np
 import random
 import scipy.spatial
 import scipy.cluster
+import itertools
 
 from ..obsModel.DirichletDistr import DirichletDistr
 from ..util.MLUtil import logsumexp
@@ -33,14 +34,24 @@ class MultObsSetInitializer( object ):
 
   def init_params_mixModel( self, expfamModel, Data):
     LP = dict()
+    try:
+      X = Data['X']
+    except KeyError:
+      try:
+        X = self.build_doc_term_mat_from_list( Data )
+      except KeyError:
+        X = self.build_doc_term_mat_from_dict( Data )
     if self.initname == 'cheat':
       LP['resp'] = self.init_resp_cheat( Data, expfamModel.K)
     if self.initname == 'randsample':
-      LP['resp'] = self.init_resp_randsample( Data, expfamModel.K)
+      LP['resp'] = self.init_resp_randsample( Data, X, expfamModel.K)
     elif self.initname == 'kmeans':
-      LP['resp'] = self.init_resp_kmeans( Data, expfamModel.K)
+      LP['resp'] = self.init_resp_kmeans( Data, X, expfamModel.K)
     else:
       LP['resp'] = self.init_resp_random( Data, expfamModel.K)
+    GroupIDs = Data['GroupIDs']
+    for gg in xrange( Data['nGroup'] ):
+      LP['resp'][GroupIDs[gg][0]:GroupIDs[gg][1] ] *= Data['wordCounts_perGroup'][gg][:,np.newaxis]
     SS = expfamModel.get_global_suff_stats( Data, LP )
     expfamModel.update_global_params( SS )
 
@@ -55,35 +66,36 @@ class MultObsSetInitializer( object ):
     Phi += 0.01
     return self.calc_resp_given_topic_word_param( Data,Phi,K)
         
-  def init_resp_kmeans( self, Data, K):
+  def build_doc_term_mat_from_list( self, Data):
+    X = np.zeros( (Data['nGroup'],Data['nVocab']) )
+    for docID in xrange( Data['nGroup']):
+      for wID, count in itertools.izip( Data['wordIDs_perGroup'][docID], Data['wordCounts_perGroup'][docID] ):
+        X[docID,wID] = count
+    return X
+
+  def build_doc_term_mat_from_dict( self,Data):
+    X = np.zeros( (Data['nGroup'],Data['nVocab']) )
+    for docID in xrange( Data['nGroup'] ):
+      for wID,count in Data['BoW'][docID].items():
+        X[docID,wID] = count
+    return X
+
+  def init_resp_kmeans( self, Data, X, K):
     '''  Select K documents via kmeans, and then use these as centers
     '''
-    try:
-      X = Data['X']
-    except KeyError:
-      X = np.zeros( (Data['nGroup'],Data['nVocab']) )
-      for docID in xrange( Data['nGroup'] ):
-        for wID,count in Data['BoW'][docID].items():
-          X[docID,wID] = count
     scipy.random.seed( self.seed )
     Phi, Z = scipy.cluster.vq.kmeans2( X, K, iter=25, minit='points' )
     Phi += 1e-5
     return self.calc_resp_given_topic_word_param( Data,Phi,K)
   
-  def init_resp_randsample( self, Data, K):
+  def init_resp_randsample( self, Data, X, K):
     '''  Select K documents at "random" and use these as centers
     '''
     random.seed( self.seed)
-    try:
-      docIDs = random.sample( xrange( Data['X'].shape[0]),K)      
-      Phi = Data['X'][ docIDs,:]
-      Phi += 1e-5
-    except KeyError:
-      docIDs = random.sample( xrange(Data['nGroup']), K )
-      Phi = 0.01*np.random.rand(K, Data['nVocab'])
-      for kk,docID in enumerate(docIDs):
-        for wID,count in Data['BoW'][docID].items():
-          Phi[kk,wID] = count
+    population = xrange(X.shape[0])
+    docIDs = random.sample( population, K)      
+    Phi = X[ docIDs,:]
+    Phi += 1e-5
     return self.calc_resp_given_topic_word_param( Data,Phi,K)
     
   def calc_resp_given_topic_word_param( self, Data, Phi,K): 

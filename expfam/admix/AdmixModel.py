@@ -17,7 +17,7 @@
    Latent Dirichlet Allocation, by Blei, Ng, and Jordan
       introduces a classic admixture model with Dirichlet-Mult observations.
 '''
-
+import itertools
 import numpy as np
 from scipy.special import gammaln, digamma
 from ..util.MLUtil import logsumexp, np2flatstr
@@ -67,15 +67,20 @@ class AdmixModel( object ):
     for rep in xrange( 10 ):
       LP = self.get_local_W_params( Data, LP)
       LP = self.get_local_Z_params( Data, LP)
-      if 'countvec' in Data:
-        for gg in range( nGroups ):
-          groupResp = Data['countvec'][ GroupIDs[gg][0]:GroupIDs[gg][1]][:,np.newaxis] \
-                          * LP['resp'][ GroupIDs[gg][0]:GroupIDs[gg][1]]
-          LP['N_perGroup'][gg] = np.sum( groupResp, axis=0 )
+      for gg in range( nGroups ):
+        groupResp = LP['resp'][ GroupIDs[gg][0]:GroupIDs[gg][1] ]
+        LP['N_perGroup'][gg] = np.sum( groupResp, axis=0 )
+      '''
+      if 'wordCounts_perGroup' in Data:
+        for docID in xrange( Data['nGroup'] ):
+          groupResp = LP['resp'][ GroupIDs[docID][0]:GroupIDs[docID][1] ] \
+                        * Data['wordCounts_perGroup'][docID][:,np.newaxis]
+          LP['N_perGroup'][docID] = np.sum( groupResp, axis=0 )
       else:
         for gg in range( nGroups ):
           groupResp = LP['resp'][ GroupIDs[gg][0]:GroupIDs[gg][1] ]
           LP['N_perGroup'][gg] = np.sum( groupResp, axis=0 )
+      '''
       curVec = LP['alpha_perGroup'].flatten()
       if prevVec is not None and np.allclose( prevVec, curVec ):
         break
@@ -85,10 +90,10 @@ class AdmixModel( object ):
   def get_local_W_params( self, Data, LP):
     GroupIDs = Data['GroupIDs']
     alpha_perGroup = self.alpha0 + LP['N_perGroup']
-
     LP['alpha_perGroup'] = alpha_perGroup
     LP['Elogw_perGroup'] = digamma( alpha_perGroup ) \
                              - digamma( alpha_perGroup.sum(axis=1) )[:,np.newaxis]
+    # Added this line to aid human inspection. self.Elogw is never used except to print status
     self.Elogw = LP['Elogw_perGroup']
     return LP
     
@@ -101,6 +106,9 @@ class AdmixModel( object ):
     resp   = np.exp( lpr-lprPerItem[:,np.newaxis] )
     resp   /= resp.sum( axis=1)[:,np.newaxis] # row normalize
     assert np.allclose( resp.sum(axis=1), 1)
+    if 'wordIDs_perGroup' in Data:
+      for gg in xrange(len(GroupIDs)):
+        resp[ GroupIDs[gg][0]:GroupIDs[gg][1] ] *= Data['wordCounts_perGroup'][gg][:,np.newaxis]
     LP['resp'] = resp
     return LP
 
@@ -108,10 +116,7 @@ class AdmixModel( object ):
   def get_global_suff_stats( self, Data, SS, LP ):
     ''' Just count expected # assigned to each cluster across all groups, as usual
     '''
-    if 'countvec' in Data:
-      SS['N'] = np.sum( Data['countvec'][:,np.newaxis]*LP['resp'], axis=0 )
-    else:
-      SS['N'] = np.sum( LP['resp'], axis=0 )
+    SS['N'] = np.sum( LP['resp'], axis=0 )
     SS['Ntotal'] = SS['N'].sum()
     return SS
     
@@ -125,7 +130,11 @@ class AdmixModel( object ):
   ##############################################################  Evidence/ELBO calc.
   def calc_evidence( self, Data, SS, LP ):
     GroupIDs = Data['GroupIDs']
-    return self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP ) \
+    if 'wordCounts_perGroup' in Data:
+      respNorm = LP['resp'] / LP['resp'].sum(axis=1)[:,np.newaxis]
+    else:
+      respNorm = None
+    return self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP, respNorm ) \
                  + self.E_logpW( LP )   - self.E_logqW(LP)
 
   def E_logpZ( self, GroupIDs, LP ):
@@ -134,8 +143,11 @@ class AdmixModel( object ):
       ElogpZ += np.sum( LP['resp'][ GroupIDs[gg][0]:GroupIDs[gg][1] ] * LP['Elogw_perGroup'][gg] )
     return ElogpZ
     
-  def E_logqZ( self, GroupIDs, LP ):
-    ElogqZ = np.sum( LP['resp'] * np.log(EPS+LP['resp'] ) )
+  def E_logqZ( self, GroupIDs, LP, respNorm=None ):
+    if respNorm is None:
+      ElogqZ = np.sum( LP['resp'] * np.log(EPS+LP['resp'] ) )
+    else:
+      ElogqZ = np.sum( LP['resp'] * np.log(EPS+respNorm ) )
     return  ElogqZ    
 
 

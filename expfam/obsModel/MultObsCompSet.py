@@ -1,5 +1,6 @@
 '''
 '''
+import itertools
 import numpy as np
 
 from .MultinomialDistr import MultinomialDistr
@@ -34,10 +35,7 @@ class MultObsCompSet( object ):
       return '\n'.join( [np2flatstr(self.qobsDistr[k].lamvec/self.qobsDistr[k].lamsum, fmtStr) for k in xrange(self.K)] )
 
   def set_obs_dims( self, Data):
-    try:
-      self.D = Data['nVocab']
-    except KeyError:
-      self.D = Data['X'].shape[1]
+    self.D = Data['nVocab']
     if self.obsPrior is not None:
       self.obsPrior.set_dims( self.D )
 
@@ -54,15 +52,30 @@ class MultObsCompSet( object ):
       return SS
     except KeyError:
       TermCountMat  = np.zeros( (self.K, self.D) )      
-      tokenID = 0
-      for docDict in Data['BoW']:
-        for termID,count in docDict.items():
-          TermCountMat[:,termID] += resp[tokenID] * count
-          tokenID += 1
-      assert np.allclose(Data['nObs'],TermCountMat.sum() )
+      for docID in xrange( Data['nGroup'] ):
+        docResp = LP['resp'][ Data['GroupIDs'][docID][0]:Data['GroupIDs'][docID][1] ]
+        TermCountMat[:, Data['wordIDs_perGroup'][docID] ]  += docResp.T
+        #print docResp.sum(axis=1)
+        #print Data['wordCounts_perGroup'][docID]
+        assert np.allclose( docResp.sum(axis=1), Data['wordCounts_perGroup'][docID] )
+        #TermCountMat[:, Data['wordIDs_perGroup'][docID] ]  += Data['wordCounts_perGroup'][docID]*docResp.T
       SS['TermCount'] = TermCountMat
     return SS
-  
+
+  '''
+      tokenID = 0
+      try:
+        for docID in xrange( Data['nGroup']):
+          for wID, count in itertools.izip( Data['wordIDs_perGroup'][docID], Data['wordCounts_perGroup'][docID] ):
+            TermCountMat[:,wID] += resp[tokenID]*count
+            tokenID += 1
+      except KeyError:
+        for docDict in Data['BoW']:
+          for termID,count in docDict.items():
+            TermCountMat[:,termID] += resp[tokenID] * count
+            tokenID += 1
+        assert np.allclose(Data['nObs'],TermCountMat.sum() )
+  '''  
   ################################################################## Param updates
   def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs):
     ''' M-step update
@@ -86,7 +99,13 @@ class MultObsCompSet( object ):
       self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['TermCount'][k] )
 
   def update_obs_params_VB_stochastic( self, SS, rho, Ntotal, **kwargs):
-    pass
+    ampF = Ntotal/SS['Ntotal']
+    for k in xrange( self.K):
+      postDistr = self.obsPrior.getPosteriorDistr( ampF*SS['TermCount'][k] )
+      if self.qobsDistr[k] is None:
+        self.qobsDistr[k] = postDistr
+      else:
+        self.qobsDistr[k].rho_update( rho, postDistr )
       
   #########################################################  Soft Evidence Fcns  
   def calc_local_params( self, Data, LP):
@@ -99,10 +118,7 @@ class MultObsCompSet( object ):
   def log_soft_ev_mat( self, Data ):
     ''' E-step update,  for EM-type
     '''
-    try:
-      lpr = np.empty( (Data['nObsEntry'], self.K) )
-    except KeyError:
-      lpr = np.empty( (Data['nObs'], self.K) )
+    lpr = np.empty( (Data['nObs'], self.K) )
     for k in xrange( self.K ):
       lpr[:,k] = self.qobsDistr[k].log_pdf( Data )
     return lpr
@@ -110,10 +126,7 @@ class MultObsCompSet( object ):
   def E_log_soft_ev_mat( self, Data ):
     ''' E-step update, for VB-type
     '''
-    try:
-      lpr = np.empty( (Data['nObsEntry'], self.K) )
-    except KeyError:
-      lpr = np.empty( (Data['nObs'], self.K) )
+    lpr = np.empty( (Data['nObs'], self.K) )
     for k in xrange( self.K ):
       lpr[:,k] = self.qobsDistr[k].E_log_pdf( Data )
     return lpr
