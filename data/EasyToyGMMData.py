@@ -93,7 +93,7 @@ def get_sequence_data( seed=8675309, nSeq=50, T=1000, **kwargs ):
     Tstart.append( tall)
     Tstop.append( tall+T )
     tall += T
-  return dict( X=X, nSeq=nSeq, Tstart=Tstart, Tstop=Tstop, TruePiMat=PiMat )
+  return dict( X=X, nSeq=nSeq, Tstart=np.asarray(Tstart), Tstop=np.asarray(Tstop), TruePiMat=PiMat )
 
 ######################################################################  Admix data
 

@@ -44,6 +44,9 @@ class HDPAdmixModel( object ):
   def to_string( self ):
     return np2flatstr( self.vstar )
 
+  def get_human_global_param_string(self):
+    return np2flatstr( self.Ebeta, '%4.2f' )
+
   def get_beta( self):
     ''' Given internal stick proportions "vstar",
           calc deterministic mapping to global mixture weights beta
@@ -98,6 +101,9 @@ class HDPAdmixModel( object ):
     resp   = np.exp( lpr-lprPerItem[:,np.newaxis] )
     #resp   /= resp.sum( axis=1)[:,np.newaxis] # row normalize
     assert np.allclose( resp.sum(axis=1), 1)
+    if 'wordIDs_perGroup' in Data:
+      for gg in xrange(len(GroupIDs)):
+        resp[ GroupIDs[gg][0]:GroupIDs[gg][1] ] *= Data['wordCounts_perGroup'][gg][:,np.newaxis]
     LP['resp'] = resp
     return LP
 
@@ -131,7 +137,11 @@ class HDPAdmixModel( object ):
   #################################################### VB ELBO computations
   def calc_evidence( self, Data, SS, LP ):
     GroupIDs = Data['GroupIDs']
-    return self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP ) \
+    if 'wordCounts_perGroup' in Data:
+      respNorm = LP['resp'] / LP['resp'].sum(axis=1)[:,np.newaxis]
+    else:
+      respNorm = LP['resp'] # Already normalized so rows sum to one
+    return self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP, respNorm ) \
            + self.E_logpW( LP )   - self.E_logqW(LP)
 
   def E_logpZ( self, GroupIDs, LP ):
@@ -140,8 +150,8 @@ class HDPAdmixModel( object ):
       ElogpZ += np.sum( LP['resp'][GroupIDs[gg][0]:GroupIDs[gg][1]] * LP['Elogw_perGroup'][gg,:-1] )
     return ElogpZ
     
-  def E_logqZ( self, GroupIDs, LP ):
-    ElogqZ = np.sum( LP['resp'] * np.log(EPS+LP['resp'] ) )
+  def E_logqZ( self, GroupIDs, LP, respNorm ):
+    ElogqZ = np.sum( LP['resp'] * np.log(EPS+respNorm ) )
     return  ElogqZ    
 
   def E_logpW( self, LP ):

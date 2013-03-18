@@ -70,17 +70,7 @@ class AdmixModel( object ):
       for gg in range( nGroups ):
         groupResp = LP['resp'][ GroupIDs[gg][0]:GroupIDs[gg][1] ]
         LP['N_perGroup'][gg] = np.sum( groupResp, axis=0 )
-      '''
-      if 'wordCounts_perGroup' in Data:
-        for docID in xrange( Data['nGroup'] ):
-          groupResp = LP['resp'][ GroupIDs[docID][0]:GroupIDs[docID][1] ] \
-                        * Data['wordCounts_perGroup'][docID][:,np.newaxis]
-          LP['N_perGroup'][docID] = np.sum( groupResp, axis=0 )
-      else:
-        for gg in range( nGroups ):
-          groupResp = LP['resp'][ GroupIDs[gg][0]:GroupIDs[gg][1] ]
-          LP['N_perGroup'][gg] = np.sum( groupResp, axis=0 )
-      '''
+
       curVec = LP['alpha_perGroup'].flatten()
       if prevVec is not None and np.allclose( prevVec, curVec ):
         break

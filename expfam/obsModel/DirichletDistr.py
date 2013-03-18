@@ -59,9 +59,12 @@ class DirichletDistr(object):
 
   def log_pdf_from_list( self, Data ):
     lpr = np.zeros( Data['nObs'] )
+    GroupIDs = Data['GroupIDs']
     for docID in xrange( Data['nGroup'] ):
-      lpr[  Data['GroupIDs'][docID][0]:Data['GroupIDs'][docID][1] ] = self.Elogphi[:, Data['wordIDs_perGroup'][docID] ].T
+      lpr[ GroupIDs[docID][0]:GroupIDs[docID][1] ] = self.Elogphi[:, Data['wordIDs_perGroup'][docID] ].T
     return lpr
+
+  ################################################################ Deprecated
     '''
     tokenID=0
     for docID in xrange( Data['nGroup'] ):

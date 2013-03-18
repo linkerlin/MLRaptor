@@ -43,7 +43,7 @@ class MultObsSetInitializer( object ):
         X = self.build_doc_term_mat_from_dict( Data )
     if self.initname == 'cheat':
       LP['resp'] = self.init_resp_cheat( Data, expfamModel.K)
-    if self.initname == 'randsample':
+    elif self.initname == 'randsample':
       LP['resp'] = self.init_resp_randsample( Data, X, expfamModel.K)
     elif self.initname == 'kmeans':
       LP['resp'] = self.init_resp_kmeans( Data, X, expfamModel.K)
@@ -56,14 +56,7 @@ class MultObsSetInitializer( object ):
     expfamModel.update_global_params( SS )
 
   def init_resp_cheat(self, Data, K):
-    Phi = np.zeros( (K,Data['nVocab']) )
-    Phi[0,:] = [ 1, 1, 1, 0, 0, 0, 0, 0, 0]
-    Phi[1,:] = [ 0, 0, 0, 1, 1, 1, 0, 0, 0]
-    Phi[2,:] = [ 0, 0, 0, 0, 0, 0, 1, 1, 1]
-    Phi[3,:] = [ 1, 0, 0, 1, 0, 0, 1, 0, 0]
-    Phi[4,:] = [ 0, 1, 0, 0, 1, 0, 0, 1, 0]
-    Phi[5,:] = [ 0, 0, 1, 0, 0, 1, 0, 0, 1]
-    Phi += 0.01
+    Phi = Data['TruePhi']
     return self.calc_resp_given_topic_word_param( Data,Phi,K)
         
   def build_doc_term_mat_from_list( self, Data):

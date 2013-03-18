@@ -10,20 +10,11 @@
    obsType   :  name or object
    obsPrior   : object [default None]
      
- Usage
- -------
-   gw   = GaussWishDistr( dF=3, invW=np.eye(2)  )
-   mm = MixModel( K=10, alpha0=0.1 )
-   qmodel = ExpFamModel( mm, 'Gaussian', gw)
-
  Inference
  -------
-   See VBLearner.py  or EMLearner.py
-
- References
- -------
-   Pattern Recognition and Machine Learning, by C. Bishop.
+  See VBLearnAlg.py
 '''
+
 import numpy as np
 
 from .obsModel import *

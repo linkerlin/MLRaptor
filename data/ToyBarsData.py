@@ -1,8 +1,8 @@
 '''
-EasyToyBernData
+ToyBarsData
 
-  Streaming data generator that draws samples from a simple 
-     Bernoulli mixture model with 3 easy-to-separate components
+  Data generator that draws samples from a simple 
+     Dir-Multinomial mixture model with 10 easy-to-separate components
      
   Author: Mike Hughes (mike@michaelchughes.com)
 '''
@@ -39,16 +39,6 @@ for kk in xrange( K/2):
   Phi[K/2 +kk, colRange] = 1.0
 
 Phi /= Phi.sum(axis=1)[:,np.newaxis]
-
-def write_to_file_ldac( Data ):
-  with open( '/home/mhughes/code/lda-c-dist/mydata.txt','w') as f:
-    for docID in xrange( Data['nGroup'] ):
-      nUniqueObs = len( Data['wordIDs_perGroup'][docID] )
-      f.write( "%d "% (nUniqueObs) )
-      for wID,count in zip( Data['wordIDs_perGroup'][docID], Data['wordCounts_perGroup'][docID]):
-        f.write( "%d:%d "% (wID,count) )
-      f.write('\n')
-  
 
 def sample_data_as_mat():
   DocTermMat = np.zeros( (D,V) )
@@ -126,6 +116,12 @@ def get_data( seed=8675309, **kwargs ):
 def get_data_by_groups( doDict=False, seed=8675309, **kwargs ):
   if seed is not None:
     np.random.seed( seed )
+  wIDs, wCts, GroupIDs, nObs, TrueW = sample_group_data_as_list()
+  Data = dict( wordIDs_perGroup=wIDs, wordCounts_perGroup=wCts, TrueW=TrueW, TruePhi=Phi, \
+                 GroupIDs=GroupIDs, nObs=nObs, nGroup=len(GroupIDs), nVocab=V )
+  return Data
+
+  '''
   if doDict:
     BoW, nObs, nEntry, GroupIDs,TrueW= sample_data_as_dict()
     wordidvec = np.hstack( [np.asarray(docDict.keys()) for docDict in BoW] )
@@ -136,6 +132,7 @@ def get_data_by_groups( doDict=False, seed=8675309, **kwargs ):
     countvec = np.hstack( [np.asarray(wCts[docID]) for docID in xrange(len(wCts))] )
     Data = dict( wordIDs_perGroup=wIDs, wordCounts_perGroup=wCts, GroupIDs=GroupIDs, nObs=nObs, nGroup=len(GroupIDs), TrueW=TrueW, nVocab=V, countvec=countvec )
   return Data
+  '''
 
 def minibatch_generator(  batch_size=1000, nBatch=50, nRep=1, seed=8675309, **kwargs):
   for repID in range( nRep ):
@@ -147,6 +144,14 @@ def np2flatstr( X, fmt='% 7.2f' ):
   return ' '.join( [fmt % x for x in X.flatten() ] )  
 
 
+def write_to_file_ldac( Data ):
+  with open( '/home/mhughes/code/lda-c-dist/mydata.txt','w') as f:
+    for docID in xrange( Data['nGroup'] ):
+      nUniqueObs = len( Data['wordIDs_perGroup'][docID] )
+      f.write( "%d "% (nUniqueObs) )
+      for wID,count in zip( Data['wordIDs_perGroup'][docID], Data['wordCounts_perGroup'][docID]):
+        f.write( "%d:%d "% (wID,count) )
+      f.write('\n')
 '''
 
 def sample_data_as_dict():

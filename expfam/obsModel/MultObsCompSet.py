@@ -55,27 +55,11 @@ class MultObsCompSet( object ):
       for docID in xrange( Data['nGroup'] ):
         docResp = LP['resp'][ Data['GroupIDs'][docID][0]:Data['GroupIDs'][docID][1] ]
         TermCountMat[:, Data['wordIDs_perGroup'][docID] ]  += docResp.T
-        #print docResp.sum(axis=1)
-        #print Data['wordCounts_perGroup'][docID]
         assert np.allclose( docResp.sum(axis=1), Data['wordCounts_perGroup'][docID] )
         #TermCountMat[:, Data['wordIDs_perGroup'][docID] ]  += Data['wordCounts_perGroup'][docID]*docResp.T
       SS['TermCount'] = TermCountMat
     return SS
 
-  '''
-      tokenID = 0
-      try:
-        for docID in xrange( Data['nGroup']):
-          for wID, count in itertools.izip( Data['wordIDs_perGroup'][docID], Data['wordCounts_perGroup'][docID] ):
-            TermCountMat[:,wID] += resp[tokenID]*count
-            tokenID += 1
-      except KeyError:
-        for docDict in Data['BoW']:
-          for termID,count in docDict.items():
-            TermCountMat[:,termID] += resp[tokenID] * count
-            tokenID += 1
-        assert np.allclose(Data['nObs'],TermCountMat.sum() )
-  '''  
   ################################################################## Param updates
   def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs):
     ''' M-step update

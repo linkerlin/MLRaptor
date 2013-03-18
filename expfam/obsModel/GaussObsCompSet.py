@@ -93,7 +93,10 @@ class GaussObsCompSet( object ):
 
   def update_obs_params_VB( self, SS, **kwargs):
     for k in xrange( self.K ):
-      ELam = self.obsPrior.LamD.E_Lam()
+      try:
+        ELam = self.qobsDistr[k].LamD.E_Lam()
+      except Exception:
+        ELam = self.obsPrior.LamD.E_Lam()
       self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['N'][k], SS['x'][k], SS['xxT'][k], ELam )
 
   def update_obs_params_VB_stochastic( self, SS, rho, Ntotal):
@@ -112,8 +115,7 @@ class GaussObsCompSet( object ):
       mean    = SS['x'][k]/SS['N'][k]
       covMat  = SS['xxT'][k]/SS['N'][k] - np.outer(mean,mean)
       covMat  += self.min_covar *np.eye( self.D )      
-      precMat = np.linalg.pinv( covMat )
-      #precMat = np.linalg.solve( covMat, np.eye(self.D) )
+      precMat = np.linalg.solve( covMat, np.eye(self.D) )
 
       #if self.obsPrior is not None:
       #  precMat += self.obsPrior.LamPrior.invW
