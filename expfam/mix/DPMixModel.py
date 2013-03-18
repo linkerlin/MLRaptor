@@ -54,8 +54,10 @@ LOGTWOPI = np.log( 2.0*np.pi )
 
 class DPMixModel( object ):
 
-  def __init__(self, K=3, alpha0=5.0, truncType='z', **kwargs):
-    self.qType = 'VB'
+  def __init__(self, K=3, alpha0=5.0, truncType='z', qType='VB', **kwargs):
+    if qType.count('EM')>0:
+      raise ValueError('DPMixModel cannot do EM. Only VB learning possible.')
+    self.qType = qType
     self.K = K
     self.alpha1 = 1.0
     self.alpha0 = alpha0    
@@ -70,6 +72,9 @@ class DPMixModel( object ):
   def to_string( self ):
     return np2flatstr( self.qalpha0 ) + np2flatstr( self.qalpha1 )
 
+  def get_human_global_param_string(self):
+    return np2flatstr( np.exp(self.Elogw), '%3.2f' )
+    
   ############################################################## LP/SS Updates  	
   def calc_local_params( self, Data, LP ):
     ''' 
@@ -93,7 +98,7 @@ class DPMixModel( object ):
     '''
     ampF = 1
     if Ntotal is not None:
-      ampF = Ntotal/SS['Nall']
+      ampF = Ntotal/SS['Ntotal']
     qalpha1 = self.alpha1 + ampF*SS['N']
     qalpha0 = self.alpha0*np.ones( self.K )
     qalpha0[:-1] += ampF*SS['N'][::-1].cumsum()[::-1][1:]
