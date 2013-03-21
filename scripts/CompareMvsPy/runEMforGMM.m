@@ -21,6 +21,7 @@ end
 CONVERGE_THR = 1e-6;
 loglik = -inf( 1, Niter );
 
+fprintf( 'EM for Mixture of %d Gaussians | seed=%d\n', K, seed);
 Resp = init_responsibilities( X, K, seed );
 tic;
 for t = 1:Niter

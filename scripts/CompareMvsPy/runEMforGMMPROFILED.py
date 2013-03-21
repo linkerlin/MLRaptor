@@ -41,6 +41,7 @@ def parse_args():
   parser.add_argument( '--MIN_COVAR', type=float, default=MIN_COVAR )
   return parser.parse_args()
 
+@profile
 def main( datafilename, K, Niter, savefilename, seed ):
   print 'EM for Mixture of %d Gaussians | seed=%d' % (K, seed);
   X = scipy.io.loadmat( datafilename )['X']
@@ -76,6 +77,7 @@ def init_responsibilities( X, K, seed):
   return Resp
 
 ###################################################
+@profile
 def Estep(X, model):
   w = model['w']
   mu = model['mu']
@@ -92,6 +94,7 @@ def Estep(X, model):
   Resp = np.exp( logResp - logPrPerRow[:,np.newaxis] )
   return Resp, np.sum(logPrPerRow)
   
+@profile
 def Mstep(X, Resp):
   N,D = X.shape
   K = Resp.shape[1]
@@ -108,6 +111,7 @@ def Mstep(X, Resp):
   return dict( w=w, mu=mu, Sigma=Sigma )
 
 ###################################################
+@profile
 def loggausspdf( X, mu, Sigma):
   ''' Calc log p( x | mu, Sigma) for each row of matrix X
   '''
@@ -118,6 +122,7 @@ def loggausspdf( X, mu, Sigma):
   logpdfPerRow = logNormConst - 0.5*dist
   return logpdfPerRow
   
+@profile
 def distMahal( X, mu, Sigma ):
   ''' Calc mahalanobis distance: (x-mu)^T Sigma^{-1} (x-mu)
        for each row of matrix X

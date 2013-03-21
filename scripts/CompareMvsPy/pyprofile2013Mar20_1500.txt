@@ -1,0 +1,108 @@
+Timer unit: 1e-06 s
+
+File: runEMforGMMPROFILED.py
+Function: main at line 44
+Total time: 162.376 s
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    44                                           @profile
+    45                                           def main( datafilename, K, Niter, savefilename, seed ):
+    46         1           35     35.0      0.0    print 'EM for Mixture of %d Gaussians | seed=%d' % (K, seed);
+    47         1       101062 101062.0      0.1    X = scipy.io.loadmat( datafilename )['X']
+    48         1           54     54.0      0.0    loglik = -np.inf*np.ones( Niter )
+    49                                           
+    50         1     28289433 28289433.0     17.4    Resp = init_responsibilities( X, K, seed)
+    51         1            8      8.0      0.0    tstart = time.time()
+    52         4           16      4.0      0.0    for t in xrange( Niter ):
+    53         3     49129606 16376535.3     30.3      model = Mstep( X, Resp )
+    54         3     84516404 28172134.7     52.0      Resp, loglik[t] = Estep( X, model )
+    55                                               
+    56         3          141     47.0      0.0      print '%5d/%d after %.0f sec | %.8e' % (t+1, Niter, time.time()-tstart, loglik[t])    
+    57         3           17      5.7      0.0      deltaLogLik = loglik[t] - loglik[t-1]
+    58         3           25      8.3      0.0      if deltaLogLik < CONVERGE_THR:
+    59                                                 break
+    60         3           18      6.0      0.0      if deltaLogLik < 0:
+    61                                                 print 'WARNING: loglik decreased!'
+    62         1       339269 339269.0      0.2    scipy.io.savemat( savefilename, model, oned_as='row' ) # oned_as kwarg avoid stupid warning
+    63         1            6      6.0      0.0    return model, loglik
+
+File: runEMforGMMPROFILED.py
+Function: Estep at line 79
+Total time: 84.5048 s
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    79                                           @profile
+    80                                           def Estep(X, model):
+    81         3            6      2.0      0.0    w = model['w']
+    82         3            6      2.0      0.0    mu = model['mu']
+    83         3           16      5.3      0.0    Sigma = model['Sigma']
+    84                                           
+    85         3           12      4.0      0.0    N = X.shape[0]
+    86         3            8      2.7      0.0    K = mu.shape[0]
+    87         3        93838  31279.3      0.1    logResp = np.zeros( (N, K) )
+    88        78          907     11.6      0.0    for k in xrange( K ):
+    89        75     82201520 1096020.3     97.3      logResp[:,k] = loggausspdf( X, mu[k,:], Sigma[:,:,k] )
+    90         3        69492  23164.0      0.1    logResp += np.log( w )
+    91                                           
+    92         3      1198119 399373.0      1.4    logPrPerRow = logsumexp( logResp, axis=1 )
+    93         3       939366 313122.0      1.1    Resp = np.exp( logResp - logPrPerRow[:,np.newaxis] )
+    94         3         1554    518.0      0.0    return Resp, np.sum(logPrPerRow)
+
+File: runEMforGMMPROFILED.py
+Function: Mstep at line 96
+Total time: 49.115 s
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    96                                           @profile
+    97                                           def Mstep(X, Resp):
+    98         3           11      3.7      0.0    N,D = X.shape
+    99         3            9      3.0      0.0    K = Resp.shape[1]
+   100                                           
+   101         3       188663  62887.7      0.4    Nk = np.sum( Resp, axis=0) + EPS
+   102         3           48     16.0      0.0    w  = Nk/N
+   103         3      1373771 457923.7      2.8    mu = np.dot( Resp.T, X ) / Nk[:,np.newaxis]
+   104         3         1370    456.7      0.0    Sigma = np.zeros( (D,D,K) )
+   105        78          417      5.3      0.0    for k in xrange( K ):
+   106        75     10397667 138635.6     21.2      Xdiff = X - mu[k,:]
+   107        75      8613782 114850.4     17.5      Xdiff = Xdiff * np.sqrt( Resp[:,k] )[:,np.newaxis]
+   108        75     28539220 380522.9     58.1      Sigma[:,:,k] = np.dot( Xdiff.T, Xdiff) / Nk[k] + MIN_COVAR*np.eye(D)
+   109         3           14      4.7      0.0    return dict( w=w, mu=mu, Sigma=Sigma )
+
+File: runEMforGMMPROFILED.py
+Function: loggausspdf at line 112
+Total time: 109.343 s
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   112                                           @profile
+   113                                           def loggausspdf( X, mu, Sigma):
+   114                                             ''' Calc log p( x | mu, Sigma) for each row of matrix X
+   115                                             '''
+   116       100          456      4.6      0.0    N,D = X.shape
+   117       100    109056011 1090560.1     99.7    dist, cholSigma = distMahal( X, mu, Sigma )
+   118       100        10554    105.5      0.0    logdetSigma = 2*np.sum( np.log( np.diag(cholSigma) ) )
+   119       100         1326     13.3      0.0    logNormConst = -0.5*D*np.log(2*np.pi) - 0.5*logdetSigma
+   120       100       274504   2745.0      0.3    logpdfPerRow = logNormConst - 0.5*dist
+   121       100          545      5.5      0.0    return logpdfPerRow
+
+File: runEMforGMMPROFILED.py
+Function: distMahal at line 123
+Total time: 108.239 s
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   123                                           @profile
+   124                                           def distMahal( X, mu, Sigma ):
+   125                                             ''' Calc mahalanobis distance: (x-mu)^T Sigma^{-1} (x-mu)
+   126                                                  for each row of matrix X
+   127                                             '''
+   128       100          233      2.3      0.0    N,D = X.shape
+   129       100     11076572 110765.7     10.2    Xdiff = X - mu
+   130       100        43849    438.5      0.0    cholSigma = scipy.linalg.cholesky( Sigma, lower=True)
+   131       100     81880285 818802.8     75.6    Q = scipy.linalg.solve_triangular( cholSigma, Xdiff.T, lower=True )
+   132       100     15237365 152373.6     14.1    distPerRow = np.sum( Q**2, axis=0 )
+   133       100          743      7.4      0.0    return distPerRow, cholSigma
+
