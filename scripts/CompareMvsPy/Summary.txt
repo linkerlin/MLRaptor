@@ -1,0 +1,11 @@
+Generally, Matlab appears to be about 1.5x faster than Python.  it can complete 3 iters in the time it takes python to do 2.
+
+This boils down to a few key functions:
+
+** solving linear systems. 
+ np.linalg.solve, while faster (why?) than scipy.linalg.solve by about 20-30%, is still ~0.5 speed compared to matlab's backslash operator
+** scalar/vector entrywise product with big matrix
+   X (2e5 x 64)  * Resp[:,k]  is just a bit (10%) slower in python than matlab.  Even X*2 is slower( range from 1.1x-4x).  Ugh.  Why?
+** X^T *X is slow for python
+   this can be mostly fixed using a direct call to blas' dgemm routine.  On my macbook, its 11 sec vs. 9 sec, so not a big deal but does add up. 
+

@@ -44,6 +44,7 @@
 '''
 
 import numpy as np
+import scipy.io
 from scipy.special import digamma, gammaln
 from ..util.MLUtil import logsumexp, np2flatstr, flatstr2np
 
@@ -75,6 +76,10 @@ class DPMixModel( object ):
   def get_human_global_param_string(self):
     return np2flatstr( np.exp(self.Elogw), '%3.2f' )
     
+  def to_dict( self ):
+    return dict( qalpha0=self.qalpha0, qalpha1=self.qalpha1 ) 
+    
+  
   ############################################################## LP/SS Updates  	
   def calc_local_params( self, Data, LP ):
     ''' 

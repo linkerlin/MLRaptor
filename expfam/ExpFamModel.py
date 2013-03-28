@@ -16,6 +16,7 @@
 '''
 
 import numpy as np
+import scipy.io
 
 from .obsModel import *
 from .mix import *
@@ -48,10 +49,24 @@ class ExpFamModel( object ):
     print 'Obs. Data Model:'
     print  self.obsModel.get_human_global_param_string()
 
-  def save_params(self, fname):
-    with open( fname+'AllocModel.dat', 'a') as f:
-      f.write( self.allocModel.to_string()+'\n' )
-    self.obsModel.save_params(fname)
+  def save_params(self, fname, saveext='mat'):
+    self.save_alloc_params( fname, saveext)
+    self.obsModel.save_params(fname, saveext)
+
+  def save_alloc_params( self, fname, saveext):
+    if saveext == 'txt':
+      outpath = fname + 'AllocModel.txt'
+      astr = self.allocModel.to_string()
+      if len(astr) == 0:
+        return None
+      with open( outpath, 'a') as f:
+        f.write( astr + '\n')
+    elif saveext == 'mat':
+      outpath = fname + 'AllocModel.mat'
+      adict = self.allocModel.to_dict()
+      if len( adict.keys() ) == 0:
+        return None
+      scipy.io.savemat( outpath, adict, oned_as='row')
 
   def set_obs_dims( self, Data):
     self.obsModel.set_obs_dims( Data )

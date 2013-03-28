@@ -15,6 +15,7 @@
 '''
 
 import numpy as np
+import scipy.io
 from scipy.special import gammaln, digamma
 from ..util.MLUtil import logsumexp, np2flatstr, flatstr2np
 
@@ -26,6 +27,23 @@ class MixModel( object ):
     self.qType = qType
     self.K = K
     self.alpha0 = alpha0
+
+  '''
+  def save_params( self, fname, saveext):
+    if saveext == 'txt':
+      outpath = fname + 'AllocModel.txt'
+      with open( outpath, 'a') as f:
+        f.write( self.to_string() + '\n')
+    elif saveext == 'mat':
+      outpath = fname + 'AllocModel.mat'
+      scipy.io.savemat( outpath, self.to_dict(), oned_as='row')
+  '''
+  
+  def to_dict(self): 
+    if self.qType.count('VB') >0:
+      return dict( alpha=self.alpha)
+    elif self.qType == 'EM':
+      return dict( w=self.w )  
 
   def to_string(self):
     if self.qType == 'VB' or self.qType == 'oVB':

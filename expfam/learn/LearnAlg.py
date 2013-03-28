@@ -18,7 +18,7 @@ from ..init.GaussObsSetInitializer import GaussObsSetInitializer
 
 class LearnAlg(object):
 
-  def __init__( self, savefilename='results/trace', nIter=100, \
+  def __init__( self, savefilename='results/', nIter=100, \
                     initname='kmeans',  convTHR=1e-10, \
                     printEvery=5, saveEvery=5, evidenceEvery=5, \
                     doVerify=False, \
@@ -35,6 +35,7 @@ class LearnAlg(object):
     self.doVerify = doVerify
     self.rhodelay =rhodelay
     self.rhoexp   = rhoexp
+    self.saveext = 'mat'
 
   def init_global_params( self, Data, seed ):
     obsType = self.expfamModel.obsModel.get_info_string()
@@ -57,12 +58,33 @@ class LearnAlg(object):
     mode = 'a'
     if doFinal or ( iterid % (self.saveEvery)==0 ):
       filename, ext = os.path.splitext( self.savefilename )
+      savedir = os.path.join( os.path.split(filename +'AllocModel.mat')[:-1][0] )
       self.SavedIters[iterid] = True
-      with open( filename+'.iters', mode) as f:        
+      with open( filename+'iters.txt', mode) as f:        
         f.write( '%d\n' % (iterid) )
-      with open( filename+'.evidence', mode) as f:        
+      with open( filename+'evidence.txt', mode) as f:        
         f.write( '%.8e\n' % (evBound) )
-      self.expfamModel.save_params( filename )
+      if self.saveext == 'mat':
+        curfname = filename
+        filename =  os.path.join( filename, 'Iter%05d' % (iterid) )
+        
+      # Actually save to file
+      self.expfamModel.save_params( filename, saveext=self.saveext )
+      
+      #  Create symlink to best/most recent results
+      if self.saveext == 'mat':
+        amatfile = os.path.split(filename +'AllocModel.mat')[-1]
+        obsmatfile =  os.path.split( filename +'ObsModel.mat')[-1]
+        linkobsmatfile = os.path.join( curfname, 'BestObsModel.mat')
+        linkamatfile = os.path.join( curfname, 'BestAllocModel.mat')
+        if os.path.islink( linkamatfile):
+          os.unlink( linkamatfile )
+        if os.path.islink( linkobsmatfile):
+          os.unlink( linkobsmatfile )
+        if os.path.exists( os.path.join(savedir,obsmatfile) ):
+          os.symlink( obsmatfile, linkobsmatfile )
+        if os.path.exists( os.path.join(savedir,amatfile) ):
+          os.symlink( amatfile, linkamatfile )
 
   ##################################################### Logging methods
   def calc_evidence( self, Data, SS, LP, Dtest=None):

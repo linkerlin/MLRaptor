@@ -1,3 +1,59 @@
+Try to make both matlab + python code parallelizable
+
+Figure out why numpy linalg solve is so slow compared to matlab.  
+Multithreaded? No, it seems that numpy is very naive about triangular solvers
+
+
+CONFIGURATION FILES -------------
+How to cleanly store the parameters for a prior distribution so that they can be easily checked/modified/etc.
+
+IDEA 0: Flat text file
+
+MixModel.config
+--------
+alpha0=1
+alpha1=5.0
+K=25
+invW = eye(7)
+
+PROS: simple and easy to implement
+CONS: cannot easily init "from data" ... e.g. set invW = eye(D) 
+
+IDEA 1:  Use a python script!
+
+MixModelPriorConfig.py
+   must expose either:
+       global var "foo"
+       or
+       function called "set_foo"  that takes Data object and cmdline args
+
+PROS: 
+CONS: complicated to understand, liable to get design wrong, tougher to override at cmdline
+
 ALLOCATION MODEL ---------------
 
 Change GroupIDs so it uses only nGroup+1 space, not 2*nGroup
+
+BENCHMARKS -------------
+Compare EM for GMM with fancy objects to plain single file impl.
+
+SLOW simple version  ~ 27 sec / iter
+EM for Mixture of 25 Gaussians | seed=6114
+    1/3 after 27 sec | 2.54015013e+07
+    2/3 after 54 sec | 3.02531705e+07
+    3/3 after 82 sec | 3.38816615e+07
+    
+FAST simple version (dotABT instead of np.dot, etc)   ~21 sec / iteration
+EM for Mixture of 25 Gaussians | seed=6114
+    1/2 after 21 sec | 2.54015013e+07
+    2/2 after 42 sec | 3.02531705e+07
+    
+Fancy version BEFORE improvments:   ~28 sec per iter (first iter has extra work for init)
+      0/3 after     36 sec. |  evidence  2.520837648e+07
+      1/3 after     62 sec. |  evidence  2.757578112e+07
+      
+Fancy version AFTER improvements (dotABT, etc)...  ~23 sec per iteration. how to get more?
+      0/4 after     33 sec. |  evidence  2.520795538e+07
+      1/4 after     55 sec. |  evidence  2.716296063e+07
+      2/4 after     79 sec. |  evidence  3.343968874e+07
+      3/4 after    102 sec. |  evidence  3.590508356e+07

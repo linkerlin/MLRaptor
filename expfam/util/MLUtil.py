@@ -1,4 +1,20 @@
 import numpy as np
+import scipy.linalg.fblas
+
+def dotATB( A, B):
+  if A.shape[1] > B.shape[1]:
+    return scipy.linalg.fblas.dgemm(1.0, A, B, trans_a=True)
+  else:
+    return np.dot( A.T, B)
+
+def dotABT( A, B):
+  if B.shape[0] > A.shape[0]:
+    return scipy.linalg.fblas.dgemm(1.0, A, B, trans_b=True)
+  else:
+    return np.dot( A, B.T)
+    
+def dotATA( A ):
+  return scipy.linalg.fblas.dgemm(1.0, A, A, trans_a=True)
 
 def flatstr2np( xvecstr ):
   return np.asarray( [float(x) for x in xvecstr.split()] )

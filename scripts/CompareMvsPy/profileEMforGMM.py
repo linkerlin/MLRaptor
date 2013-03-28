@@ -14,12 +14,13 @@ for line in open( 'runEMforGMM.py', 'r'):
 proffile.close()
 
 argString = 'BerkSegTrain25.mat 25 3 out2.mat 8675309'
-CMD = 'python /home/mhughes/git/MLRaptor/util/kernprof.py --line-by-line %s %s' % (proffileName, argString)
-status = subprocess.call( CMD.split(' ') )
+CMD = 'python /Users/mhughes/git/MLRaptor/util/kernprof.py --line-by-line %s %s' % (proffileName, argString)
+#status = subprocess.call( CMD.split(' ') )
 
 txtfilename = 'pyprofile.txt'
-CMD = 'python -m line_profiler %s > %s' % (proffileName+'.lprof', txtfilename)
-status = subprocess.call( CMD.split(' ') )
+CMD = 'python -m line_profiler %s' % (proffileName+'.lprof')
+print CMD
+status = subprocess.call( CMD.split(' '), stdout=open(txtfilename,'w') )
 
 
 '''EM for Mixture of 25 Gaussians | seed=8675309

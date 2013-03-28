@@ -302,7 +302,7 @@ def main(args):
       basepath = os.path.join( 'results', jobpath, str(task) )
       mkpath(  basepath )
       clear_folder( basepath )
-      algParams['savefilename'] = os.path.join( basepath, 'trace' )
+      algParams['savefilename'] = os.path.join( basepath, '' )
 
       print 'Trial %2d/%d | alg. seed: %d | data seed: %d' \
                  % (task, args.nTask, algParams['seed'], dataParams['seed'])

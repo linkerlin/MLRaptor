@@ -71,6 +71,9 @@ class WishartDistr( object ):
   def to_string( self ):
     return np2flatstr( np.hstack([self.D,self.v]) ) + np2flatstr( self.invW )
 
+  def to_dict( self):
+    return dict( v=self.v, invW=self.invW)
+
   ########################################## Posterior calc
   def rho_update( self, rho, newWishDistr ):
     self.v = rho*newWishDistr.v + (1-rho)*self.v

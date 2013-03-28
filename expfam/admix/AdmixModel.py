@@ -49,6 +49,9 @@ class AdmixModel( object ):
     '''
     return ''  
     	    	
+  def to_dict( self ):
+    return dict()  	    	
+    	    	
   ###################################################################  Local Params (Estep)
   def calc_local_params( self, Data, LP):
     ''' E-step

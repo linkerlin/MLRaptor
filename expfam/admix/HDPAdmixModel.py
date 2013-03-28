@@ -40,6 +40,9 @@ class HDPAdmixModel( object ):
 
   def get_info_string( self):
     return 'HDP infinite admixture model with %d components' % (self.K)
+  
+  def to_dict( self ):
+    return dict( vstar=self.vstar, beta=self.get_beta() )
         
   def to_string( self ):
     return np2flatstr( self.vstar )

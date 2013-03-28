@@ -11,7 +11,7 @@
 import numpy as np
 import scipy.linalg
 
-from ..util.MLUtil import np2flatstr, flatstr2np
+from ..util.MLUtil import np2flatstr, flatstr2np, dotATA, dotABT, dotATA
 
 LOGPI = np.log(np.pi)
 LOGTWO = np.log(2.00)
@@ -43,9 +43,10 @@ class GaussianDistr( object ):
     self.set_helper_params()
     
   def set_helper_params(self):
-    self.cholL   = scipy.linalg.cholesky( self.L )
+    # Need lower chol if working with covar mat,
+    #  but here can use upper since working with prec mat
+    self.cholL   = scipy.linalg.cholesky( self.L ) #UPPER by default
     self.logdetL = 2.0*np.sum( np.log( np.diag( self.cholL ) )  )
-    self.invL = np.linalg.solve( self.L, np.eye(self.D) )
 
   #######################################################  To/From String
   def from_string( self, mystr ):
@@ -57,6 +58,9 @@ class GaussianDistr( object ):
 
   def to_string( self ):
     return np2flatstr( np.hstack([self.D,self.m]) ) + np2flatstr( self.L )
+
+  def to_dict( self ):
+    return dict( m=self.m, L=self.L )
 
   #######################################################   ExpFam Natural Param Convert
   def get_natural_params( self ):
@@ -112,10 +116,11 @@ class GaussianDistr( object ):
     if type(X) is dict:
       X = X['X']
     return self.get_log_norm_const() - 0.5*self.dist_mahalanobis( X )
-   
+  
   def dist_mahalanobis(self, X):
     '''  Given NxD matrix X, compute  Nx1 vector Dist
             Dist[n] = ( X[n]-m )' L (X[n]-m)
     '''
-    Q = np.dot( self.cholL, (X-self.m).T )
+    Q = dotABT( self.cholL, X-self.m )
+    #Q = np.dot( self.cholL, (X-self.m).T )
     return np.sum( Q**2, axis=0)

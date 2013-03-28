@@ -7,10 +7,10 @@
      as well as the set/collection of mixture component parameters 1,2,... K   
 '''
 import numpy as np
-
+import scipy.io
 from .GaussianDistr import GaussianDistr
 from .GaussWishDistrIndep import GaussWishDistrIndep
-from ..util.MLUtil import np2flatstr
+from ..util.MLUtil import np2flatstr, dotATA, dotATB, dotABT
 
 LOGPI = np.log(np.pi)
 LOGTWO = np.log(2.00)
@@ -48,15 +48,37 @@ class GaussObsCompSet( object ):
       self.obsPrior.set_dims( self.D )
   
   ################################################################## File IO 
-  def save_params( self, fname ):
+  def save_params( self, fname, saveext ):
+    if saveext == 'txt':
+      self.save_params_txt( fname)
+    else:
+      self.save_params_mat( fname )
+
+  def save_params_mat( self, fname ):
+    fname = fname + 'ObsModel.mat'
+    myList = list()
+    if self.qType.count('VB')>0:
+      for k in xrange(self.K):
+        mDict = self.qobsDistr[k].muD.to_dict()
+        mDict.update( self.qobsDistr[k].LamD.to_dict() )
+        myList.append( mDict )
+    else:
+      for k in xrange( self.K):
+        myList.append( self.qobsDistr[k].to_dict() )
+    myDict = dict()
+    for key in myList[0].keys():
+      myDict[key] = np.squeeze( np.dstack( [ compDict[key] for compDict in myList] ) )
+    scipy.io.savemat( fname, myDict, oned_as='row')
+          
+  def save_params_txt( self, fname ):
     for k in xrange(self.K):
       if self.qType.count('VB')>0:
-        with open( fname+'ObsComp%03dMu.dat'%(k), 'a') as f:
+        with open( fname+'ObsComp%03dMu.txt'%(k), 'a') as f:
           f.write( self.qobsDistr[k].muD.to_string()+'\n'  )
-        with open( fname+'ObsComp%03dLam.dat'%(k), 'a') as f:
+        with open( fname+'ObsComp%03dLam.txt'%(k), 'a') as f:
           f.write( self.qobsDistr[k].LamD.to_string()+'\n'  )
       else:
-        with open( fname+'ObsComp%03d.dat'%(k), 'a') as f:
+        with open( fname+'ObsComp%03d.txt'%(k), 'a') as f:
           f.write( self.qobsDistr[k].to_string()+'\n'  )
 
   ################################################################## Suff stats
@@ -69,10 +91,14 @@ class GaussObsCompSet( object ):
       X = Data
     resp = LP['resp']
 
-    SS['x']   = np.dot( resp.T, X )
-    SS['xxT'] = np.empty( (self.K, self.D, self.D) )
+    SS['x']   = dotATB( resp, X) 
+    #SS['x'] = np.dot( resp.T, X )
+    #SS['xxT'] = np.empty( (self.K, self.D, self.D) )
+    SSxxT = np.empty( (self.K, self.D, self.D) )
     for k in xrange( self.K):
-      SS['xxT'][k] = np.dot( X.T * resp[:,k], X )
+      SSxxT[k] = dotATB( X, X*resp[:,k][:,np.newaxis] )
+      #SS['xxT'][k] = np.dot( X.T * resp[:,k], X )
+    SS['xxT'] = SSxxT
     return SS
 
   ################################################################## Param updates

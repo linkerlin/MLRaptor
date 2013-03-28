@@ -51,7 +51,7 @@ int discrete_rand( Vec &p ) {
 }
 
 void select_without_replacement( int N, int K, Vec &chosenIDs) {
-  		Vec p = Vec::Ones(N);
+    Vec p = Vec::Ones(N);
     for (int kk =0; kk<K; kk++) {
       int choice;
       int doKeep = false;
@@ -81,11 +81,11 @@ void pairwise_distance( MexMat &X, MexMat &Mu, Mat &Dist ) {
       Dist.col(kk) = ( X.rowwise() - Mu.row(kk) ).square().rowwise().sum();
     }    
   } else {
-    clock_t starttime = clock();
+    //clock_t starttime = clock();
     Dist = -2*( X.matrix() * Mu.transpose().matrix() );
     //cout << "X*Mu | " << get_elapsed_time( starttime, clock() ) << endl;
   
-    starttime = clock();
+    //starttime = clock();
     Dist.rowwise() += Mu.square().rowwise().sum().transpose().row(0);
     //cout << "Mu*Mu | " << get_elapsed_time( starttime, clock() ) << endl;
   }
@@ -99,7 +99,7 @@ void init_Mu( MexMat &X, MexMat &Mu, char* initname ) {
 	if ( string( initname ) == "random" ) {
 		
 		Vec ChosenIDs = Vec::Zero(K);
-    select_without_replacement( N, K, ChosenIDs );
+                select_without_replacement( N, K, ChosenIDs );
 		
 		for (int kk=0; kk<K; kk++) {
 		  Mu.row( kk ) = X.row( ChosenIDs[kk] );
