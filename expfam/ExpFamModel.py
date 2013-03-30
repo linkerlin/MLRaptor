@@ -22,6 +22,7 @@ import os
 from .obsModel import *
 from .mix import *
 from .admix import *
+from .hmm import *
 
 class ExpFamModel( object ):
 
@@ -86,6 +87,12 @@ class ExpFamModel( object ):
       fname = os.path.sep.join( fnameList )
       self.save_alloc_prior( fname, saveext)
       self.save_obs_prior( fname, saveext)
+      atype = type(self.allocModel).__name__
+      otype = type(self.obsModel).__name__
+      with open( os.path.join(fname, 'AllocModelType.txt'), 'w') as f:
+        f.write( atype)
+      with open( os.path.join(fname, 'ObsModelType.txt'),'w') as f:
+        f.write( otype)
 
   def save_alloc_params( self, fname, saveext):
     if saveext == 'txt':
@@ -135,3 +142,9 @@ class ExpFamModel( object ):
   @classmethod
   def BuildFromMatfile( self, matfilepath):
     # NEED TO STORE MODELTYPES for Alloc and Obs in the matfilepath!
+    atype = open( os.path.join(matfilepath,'AllocModelType.txt'),'r').readline()
+    otype = open( os.path.join(matfilepath,'ObsModelType.txt'),'r').readline()
+    GDict = globals()
+    amodel = GDict[atype].BuildFromMatfile( matfilepath )
+    omodel = GDict[otype].BuildFromMatfile( matfilepath )
+    return ExpFamModel( amodel, omodel )

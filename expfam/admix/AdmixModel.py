@@ -167,7 +167,7 @@ class AdmixModel( object ):
                   + np.inner(  a_gg -1,  LP['Elogw_perGroup'][gg] )
     return ElogqW
 
-  #########################################################  Factory Method: Constructor from mat file
+  ######################################################  Factory Method: from mat file
   @classmethod
   def BuildFromMatfile( self, matfilepath, priormatfilepath=None ):
     if priormatfilepath is None:
@@ -175,7 +175,8 @@ class AdmixModel( object ):
         priormatfilepath = os.path.split( matfilepath )[0]
         priormatfilepath = os.path.join( priormatfilepath, 'AllocPrior.mat')
       else:
-        priormatfilepath = matfilepath
+        priormatfilepath = os.path.join( matfilepath, 'AllocPrior.mat')
+        matfilepath = os.path.join( matfilepath, 'BestAllocModel.mat')
 
     PriorDict = scipy.io.loadmat( priormatfilepath )
     alpha0 = float( PriorDict['alpha0'][0] )

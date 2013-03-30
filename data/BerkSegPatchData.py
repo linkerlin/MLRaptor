@@ -12,9 +12,13 @@ import os.path
 import sys
 import random
 import time
+import platform
 
 # Read in the data directory from file
-DATADIRNAME  = os.path.join( '/home/mhughes/git/MLRaptor/data' )
+if platform.system() == 'Darwin':
+  DATADIRNAME  = os.path.join( '/Users/mhughes/git/MLRaptor/data' )
+else:
+  DATADIRNAME  = os.path.join( '/home/mhughes/git/MLRaptor/data' )
 PATHFILENAME = os.path.join(DATADIRNAME,'BerkSegPatchData.path')
 with open( PATHFILENAME,'r') as f:
   DPATH = f.readline().strip()

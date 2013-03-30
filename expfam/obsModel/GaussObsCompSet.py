@@ -249,7 +249,7 @@ class GaussObsCompSet( object ):
       lp[k] = self.qobsDistr[k].LamD.get_entropy()
     return -1*lp.sum()
 
-  #########################################################  Factory Method: Constructor from mat file
+  ######################################################### Factory Method: Build from mat
   @classmethod
   def BuildFromMatfile( self, matfilepath, priormatfilepath=None ):
     if priormatfilepath is None:
@@ -257,7 +257,8 @@ class GaussObsCompSet( object ):
         priormatfilepath = os.path.split( matfilepath )[0]
         priormatfilepath = os.path.join( priormatfilepath, 'ObsPrior.mat')
       else:
-        priormatfilepath = matfilepath
+        priormatfilepath = os.path.join( matfilepath, 'ObsPrior.mat')
+        matfilepath = os.path.join( matfilepath, 'BestObsModel.mat')
 
     PDict = scipy.io.loadmat( matfilepath )
     PriorDict = scipy.io.loadmat( priormatfilepath )
