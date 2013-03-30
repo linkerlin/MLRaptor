@@ -1,0 +1,23 @@
+====================================================================== Standard, no parallelism
+>> runEMforGMM( 'BerkSegTrain25.mat', 25, 5, 'out2.mat', 6114)
+EM for Mixture of 25 Gaussians | seed=6114
+     1/5 after 23 sec | 2.54015013e+07 
+     2/5 after 46 sec | 3.02531705e+07 
+     3/5 after 69 sec | 3.38816615e+07 
+     4/5 after 91 sec | 3.67874222e+07 
+
+====================================================================== Parallel E-step  
+>> runEMforGMM_PARALLEL( 'BerkSegTrain25.mat', 25, 5, 'out.mat', 6114)
+EM for Mixture of 25 Gaussians | seed=6114
+     1/5 after 21 sec | 2.54015013e+07 
+     2/5 after 38 sec | 3.02531705e+07 
+     3/5 after 55 sec | 3.38816615e+07 
+     4/5 after 72 sec | 3.67874222e+07
+
+====================================================================== Parallel M-step  
+>> runEMforGMM_PARALLEL( 'BerkSegTrain25.mat', 25, 5, 'out.mat', 6114)
+EM for Mixture of 25 Gaussians | seed=6114
+     1/5 after 14 sec | 2.54015013e+07 
+     2/5 after 28 sec | 3.02531705e+07 
+     3/5 after 42 sec | 3.38816615e+07 
+     4/5 after 57 sec | 3.67874222e+07 
