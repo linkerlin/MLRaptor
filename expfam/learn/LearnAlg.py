@@ -69,7 +69,7 @@ class LearnAlg(object):
         filename =  os.path.join( filename, 'Iter%05d' % (iterid) )
         
       # Actually save to file
-      self.expfamModel.save_params( filename, saveext=self.saveext )
+      self.expfamModel.save_params( filename, saveext=self.saveext, doSavePriorInfo= (iterid==0) )
       
       #  Create symlink to best/most recent results
       if self.saveext == 'mat':

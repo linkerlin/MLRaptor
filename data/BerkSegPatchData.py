@@ -26,7 +26,7 @@ DEXT  = '*.dat*'
 
 NimgDEF = 50
 
-def print_data_info():
+def print_data_info( modelName, **kwargs):
   print 'Data: Patches from the Berkeley Segmentation dataset (training)'
   fList = glob.glob( os.path.join(DPATH, DEXT) )
   X = np.loadtxt( fList.pop() )
@@ -69,6 +69,12 @@ def minibatch_generator(  batch_size=1000, Nimg=NimgDEF, nBatch=50, nRep=1, seed
       #print 'remaining cache size:', Xcache.shape[0]
       yield {'X':Xcur}
 
+def load_image_as_group_data( fname, startID=0 ):
+  X = np.loadtxt( fname )
+  GroupID = (startID, startID+X.shape[0] )
+  curID = startID + X.shape[0]
+  return X, GroupID, curID
+
 ################################################################################## ADMIXTURE LOAD
 def get_data_by_groups( seed=8675309, Nimg=NimgDEF, **kwargs ):
   tstart = time.time()
@@ -79,20 +85,36 @@ def get_data_by_groups( seed=8675309, Nimg=NimgDEF, **kwargs ):
   fList = fList[:Nimg]
   Xlist = list()
   GroupIDs = list()
-  ncur = 0
+  nTotal = 0
   for fname in fList:
-    Xcur = np.loadtxt( fname )
-    GroupIDs.append( np.arange(ncur, ncur+Xcur.shape[0]) )
+    Xcur, curID, nTotal = load_image_as_group_data( fname, nTotal )
     Xlist.append( Xcur )
-    ncur = GroupIDs[-1][-1] + 1
+    GroupIDs.append( curID )
   X = np.vstack( Xlist )
   print '    done after %.1f sec. %d patches loaded.' % (time.time() - tstart, X.shape[0])
   return {'X':X, 'GroupIDs':GroupIDs, 'nGroup':len(GroupIDs)}
 
-def group_minibatch_generator(  batch_size=1000, Nimg=50, nBatch=50, nRep=1, seed=8675309, **kwargs):
-  ''' How to do this properly??
-  '''
-  pass
+def group_minibatch_generator(  batch_size=9401, nBatch=50, nRep=1, seed=8675309, **kwargs):
+  for repID in range( nRep ):
+    random.seed( seed )
+    fList = glob.glob( os.path.join(DPATH, DEXT) )
+    random.shuffle( fList )
+    fList = fList[:nBatch]
+    Xlist = list()
+    GroupIDs = list()
+    nTotal = 0
+    for batchID in range( nBatch ):
+      Xcur, curID, nTotal = load_image_as_group_data( fList[batchID], nTotal )
+      Xlist.append( Xcur )
+      GroupIDs.append( curID )    
+      if nTotal >= batch_size:  
+        yield dict( X=np.vstack(Xlist), GroupIDs=GroupIDs, nGroup=len(GroupIDs) )
+        Xlist=list()
+        GroupIDs=list()
+        nTotal=0
+    if nTotal > 0:
+      yield dict( X=np.vstack(Xlist), GroupIDs=GroupIDs, nGroup=len(GroupIDs) )
+   
 
 def np2flatstr( X, fmt='% 7.2f' ):
   return ' '.join( [fmt % x for x in X.flatten() ] )  

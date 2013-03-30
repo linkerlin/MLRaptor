@@ -1,6 +1,6 @@
 #!/bin/bash
 
-COMMAND="../LearnExpFam.py BerkSegPatchData QAdmixModel Gaussian VB --jobname mikedemo --initname random --printEvery 1 --saveEvery 5 --K 25"
+COMMAND="../LearnExpFam.py BerkSegPatchData AdmixModel Gaussian VB --jobname mikefast --initname randsample --printEvery 1 --saveEvery 10 --K 25"
 COMMAND=$COMMAND" --nIter 100"
 echo $COMMAND
 
@@ -11,5 +11,4 @@ echo " "
 exit
 
 ##############################################################################
-Your job-array 2706674.1-10:1 ("LearnExpFam.py") has been submitted
-
+Your job-array 2856309.1-10:1 ("LearnExpFam.py") has been submitted

@@ -6,4 +6,6 @@ from .LearnAlg import LearnAlg
 from .VBLearnAlg import VBLearnAlg
 from .OnlineVBLearnAlg import OnlineVBLearnAlg
 
-__all__ = ['LearnAlg', 'VBLearnAlg','OnlineVBLearnAlg']
+from .VBInferHeldout import VBInferHeldout
+
+__all__ = ['LearnAlg', 'VBLearnAlg','OnlineVBLearnAlg', 'VBInferHeldout']

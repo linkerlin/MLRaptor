@@ -8,6 +8,9 @@
 '''
 import numpy as np
 import scipy.io
+import os
+
+from .WishartDistr import WishartDistr
 from .GaussianDistr import GaussianDistr
 from .GaussWishDistrIndep import GaussWishDistrIndep
 from ..util.MLUtil import np2flatstr, dotATA, dotATB, dotABT
@@ -47,6 +50,9 @@ class GaussObsCompSet( object ):
     if self.obsPrior is not None:
       self.obsPrior.set_dims( self.D )
   
+  def get_prior_dict( self ):
+    return self.obsPrior.to_dict()
+
   ################################################################## File IO 
   def save_params( self, fname, saveext ):
     if saveext == 'txt':
@@ -95,8 +101,10 @@ class GaussObsCompSet( object ):
     #SS['x'] = np.dot( resp.T, X )
     #SS['xxT'] = np.empty( (self.K, self.D, self.D) )
     SSxxT = np.empty( (self.K, self.D, self.D) )
+    XT = X.T.copy()
     for k in xrange( self.K):
-      SSxxT[k] = dotATB( X, X*resp[:,k][:,np.newaxis] )
+      SSxxT[k] = np.dot( XT*resp[:,k], X)
+      #SSxxT[k] = dotATB( X, X*resp[:,k][:,np.newaxis] )
       #SS['xxT'][k] = np.dot( X.T * resp[:,k], X )
     SS['xxT'] = SSxxT
     return SS
@@ -240,3 +248,45 @@ class GaussObsCompSet( object ):
     for k in xrange( self.K):
       lp[k] = self.qobsDistr[k].LamD.get_entropy()
     return -1*lp.sum()
+
+  #########################################################  Factory Method: Constructor from mat file
+  @classmethod
+  def BuildFromMatfile( self, matfilepath, priormatfilepath=None ):
+    if priormatfilepath is None:
+      if matfilepath.endswith('.mat'):
+        priormatfilepath = os.path.split( matfilepath )[0]
+        priormatfilepath = os.path.join( priormatfilepath, 'ObsPrior.mat')
+      else:
+        priormatfilepath = matfilepath
+
+    PDict = scipy.io.loadmat( matfilepath )
+    PriorDict = scipy.io.loadmat( priormatfilepath )
+    if len( PDict.keys() ) == 2:
+      qType = 'EM'
+      obsPrior = GaussianDistr( m=PriorDict['m'], L=PriorDict['L'] )
+    else:
+      qType = 'VB'
+      muD = GaussianDistr( m=PriorDict['m'], L=PriorDict['L'] )
+      LamD = WishartDistr( v=PriorDict['v'][0], invW=PriorDict['invW'] )
+      obsPrior = GaussWishDistrIndep( muD, LamD )
+    K = PDict['m'].shape[-1]
+    keyNames = [ key for key in PDict.keys() if not key.startswith('__')]
+
+    obsCompSet = GaussObsCompSet( K, qType, obsPrior)
+    if qType == 'EM':
+      for k in xrange(K):
+        m = PDict['m'][:,k].copy()
+        L = PDict['L'][:,:,k].newbyteorder('=').copy()
+        obsCompSet.qobsDistr[k] = GaussianDistr( m, L)      
+    else:
+      for k in xrange(K):
+        m = PDict['m'][:,k].copy()
+        L = PDict['L'][:,:,k].newbyteorder('=').copy()
+        muD = GaussianDistr( m=m, L=L)
+        v = PDict['v'][0,k].copy()
+        invW = PDict['invW'][:,:,k].newbyteorder('=').copy()
+        LamD = WishartDistr( v=v, invW=invW )
+        obsCompSet.D = muD.D
+        obsCompSet.qobsDistr[k] = GaussWishDistrIndep( muD=muD, LamD=LamD )      
+    return obsCompSet
+

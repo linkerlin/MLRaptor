@@ -38,6 +38,9 @@ class MixModel( object ):
       outpath = fname + 'AllocModel.mat'
       scipy.io.savemat( outpath, self.to_dict(), oned_as='row')
   '''
+
+  def get_prior_dict( self ):
+    return dict( alpha0=self.alpha0 )
   
   def to_dict(self): 
     if self.qType.count('VB') >0:

@@ -17,6 +17,7 @@
 
 import numpy as np
 import scipy.io
+import os
 
 from .obsModel import *
 from .mix import *
@@ -38,36 +39,7 @@ class ExpFamModel( object ):
     else:
       self.obsModel = obsModelName
   
-  def print_model_info( self ):
-    print 'Allocation Model:  %s'%  (self.allocModel.get_info_string() )
-    print 'Obs. Data  Model:  %s'%  (self.obsModel.get_info_string() )
-    print 'Obs. Data  Prior:  %s'%  (self.obsModel.get_info_string_prior() )
-  
-  def print_global_params( self ):
-    print 'Allocation Model:'
-    print  self.allocModel.get_human_global_param_string()
-    print 'Obs. Data Model:'
-    print  self.obsModel.get_human_global_param_string()
-
-  def save_params(self, fname, saveext='mat'):
-    self.save_alloc_params( fname, saveext)
-    self.obsModel.save_params(fname, saveext)
-
-  def save_alloc_params( self, fname, saveext):
-    if saveext == 'txt':
-      outpath = fname + 'AllocModel.txt'
-      astr = self.allocModel.to_string()
-      if len(astr) == 0:
-        return None
-      with open( outpath, 'a') as f:
-        f.write( astr + '\n')
-    elif saveext == 'mat':
-      outpath = fname + 'AllocModel.mat'
-      adict = self.allocModel.to_dict()
-      if len( adict.keys() ) == 0:
-        return None
-      scipy.io.savemat( outpath, adict, oned_as='row')
-
+  #===================================================
   def set_obs_dims( self, Data):
     self.obsModel.set_obs_dims( Data )
   
@@ -91,3 +63,75 @@ class ExpFamModel( object ):
   def update_global_params( self, SS, rho=None, **kwargs):
     self.allocModel.update_global_params(SS, rho, **kwargs)
     self.obsModel.update_global_params( SS, rho, **kwargs)
+
+  #===================================================  PRINT TO STDOUT
+  def print_model_info( self ):
+    print 'Allocation Model:  %s'%  (self.allocModel.get_info_string() )
+    print 'Obs. Data  Model:  %s'%  (self.obsModel.get_info_string() )
+    print 'Obs. Data  Prior:  %s'%  (self.obsModel.get_info_string_prior() )
+  
+  def print_global_params( self ):
+    print 'Allocation Model:'
+    print  self.allocModel.get_human_global_param_string()
+    print 'Obs. Data Model:'
+    print  self.obsModel.get_human_global_param_string()
+
+  #===================================================  SAVE TO FILE
+  def save_params(self, fname, saveext='mat', doSavePriorInfo=False):
+    self.save_alloc_params( fname, saveext)
+    self.obsModel.save_params(fname, saveext)
+    if doSavePriorInfo:
+      # Remove "Iter000xx" prefix from fname!
+      fnameList = fname.split( os.path.sep )[:-1]
+      fname = os.path.sep.join( fnameList )
+      self.save_alloc_prior( fname, saveext)
+      self.save_obs_prior( fname, saveext)
+
+  def save_alloc_params( self, fname, saveext):
+    if saveext == 'txt':
+      outpath = fname + 'AllocModel.txt'
+      astr = self.allocModel.to_string()
+      if len(astr) == 0:
+        return None
+      with open( outpath, 'a') as f:
+        f.write( astr + '\n')
+    elif saveext == 'mat':
+      outpath = fname + 'AllocModel.mat'
+      adict = self.allocModel.to_dict()
+      if len( adict.keys() ) == 0:
+        return None
+      scipy.io.savemat( outpath, adict, oned_as='row')
+
+  def save_alloc_prior( self, fname, saveext):
+    if saveext == 'txt':
+      outpath = os.path.join( fname, 'AllocPrior.txt')
+      astr = self.allocModel.to_prior_string()
+      if len(astr) == 0:
+        return None
+      with open( outpath, 'a') as f:
+        f.write( astr + '\n')
+    elif saveext == 'mat':      
+      outpath = os.path.join( fname, 'AllocPrior.mat')
+      adict = self.allocModel.get_prior_dict()
+      if len( adict.keys() ) == 0:
+        return None
+      scipy.io.savemat( outpath, adict, oned_as='row')
+
+  def save_obs_prior( self, fname, saveext):
+    if saveext == 'txt':
+      outpath = os.path.join( fname, 'ObsPrior.txt')
+      astr = self.obsModel.to_prior_string()
+      if len(astr) == 0:
+        return None
+      with open( outpath, 'a') as f:
+        f.write( astr + '\n')
+    elif saveext == 'mat':      
+      outpath = os.path.join( fname, 'ObsPrior.mat')
+      adict = self.obsModel.get_prior_dict()
+      if len( adict.keys() ) == 0:
+        return None
+      scipy.io.savemat( outpath, adict, oned_as='row')
+
+  @classmethod
+  def BuildFromMatfile( self, matfilepath):
+    # NEED TO STORE MODELTYPES for Alloc and Obs in the matfilepath!

@@ -78,7 +78,9 @@ class DPMixModel( object ):
     
   def to_dict( self ):
     return dict( qalpha0=self.qalpha0, qalpha1=self.qalpha1 ) 
-    
+  
+  def get_prior_dict( self ):  
+      return dict( alpha0=self.alpha0, alpha1=self.alpha1 )
   
   ############################################################## LP/SS Updates  	
   def calc_local_params( self, Data, LP ):

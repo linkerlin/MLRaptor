@@ -31,6 +31,9 @@ class GaussWishDistrIndep( object ):
     self.muD.set_dims( D)
     self.LamD.set_dims( D)
 
+  def to_dict( self ):
+    return dict( v=self.LamD.v, invW=self.LamD.invW, m=self.muD.m, L=self.muD.L )
+
   def E_log_pdf( self, X):
     '''
       E[ log p(X | this distribution )], up to prop. constant
@@ -47,7 +50,7 @@ class GaussWishDistrIndep( object ):
     '''
     Xdiff = X - self.muD.m
     Dist  = self.LamD.E_dist_mahalanobis( Xdiff.T )
-    return Dist + self.LamD.E_traceLambda(self.muD.invL)
+    return Dist + self.LamD.E_traceLambda( self.muD.get_invL() )
 
   def getPosteriorDistr( self, N, x, xxT, ELam ):
     '''

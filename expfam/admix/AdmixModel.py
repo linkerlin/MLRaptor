@@ -19,6 +19,10 @@
 '''
 import itertools
 import numpy as np
+
+import scipy.io
+import os
+
 from scipy.special import gammaln, digamma
 from ..util.MLUtil import logsumexp, np2flatstr
 
@@ -52,6 +56,9 @@ class AdmixModel( object ):
   def to_dict( self ):
     return dict()  	    	
     	    	
+  def get_prior_dict( self ):
+    return dict( alpha0=self.alpha0, K=self.K )
+
   ###################################################################  Local Params (Estep)
   def calc_local_params( self, Data, LP):
     ''' E-step
@@ -159,3 +166,18 @@ class AdmixModel( object ):
       ElogqW +=  gammaln(  a_gg.sum()) - gammaln(  a_gg ).sum() \
                   + np.inner(  a_gg -1,  LP['Elogw_perGroup'][gg] )
     return ElogqW
+
+  #########################################################  Factory Method: Constructor from mat file
+  @classmethod
+  def BuildFromMatfile( self, matfilepath, priormatfilepath=None ):
+    if priormatfilepath is None:
+      if matfilepath.endswith('.mat'):
+        priormatfilepath = os.path.split( matfilepath )[0]
+        priormatfilepath = os.path.join( priormatfilepath, 'AllocPrior.mat')
+      else:
+        priormatfilepath = matfilepath
+
+    PriorDict = scipy.io.loadmat( priormatfilepath )
+    alpha0 = float( PriorDict['alpha0'][0] )
+    K = PriorDict['K'][0]
+    return AdmixModel( K=K, alpha0=alpha0 )

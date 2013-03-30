@@ -17,8 +17,10 @@ for taskID = taskIDs
     curDUMPDIR = fullfile(DUMPDIR,  num2str(taskID) );
     
     try
-        iters = load( fullfile(curDUMPDIR, 'trace.iters') );
-        ev    = load( fullfile(curDUMPDIR, 'trace.evidence') );
+        iters  = load( fullfile(curDUMPDIR, 'iters.txt') );
+        ev     = load( fullfile(curDUMPDIR, 'evidence.txt'));
+        %iters = load( fullfile(curDUMPDIR, 'trace.iters') );
+        %ev    = load( fullfile(curDUMPDIR, 'trace.evidence') );
         plot( iters, ev, '.-', 'MarkerSize', 10, 'LineWidth', 2);
     catch e
         continue;

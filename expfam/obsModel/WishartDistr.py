@@ -45,7 +45,7 @@ class WishartDistr( object ):
       self.init_params()
    
   def init_params( self ):
-    self.v    = self.D+2
+    self.v    = float( self.D+2 )
     self.invW = np.eye( self.D )
     self.set_helper_params()
     

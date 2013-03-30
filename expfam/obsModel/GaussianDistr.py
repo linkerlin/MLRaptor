@@ -48,6 +48,13 @@ class GaussianDistr( object ):
     self.cholL   = scipy.linalg.cholesky( self.L ) #UPPER by default
     self.logdetL = 2.0*np.sum( np.log( np.diag( self.cholL ) )  )
 
+  def get_invL( self ):
+    try:
+      return self.invL
+    except Exception:
+      self.invL = np.linalg.inv( self.L )
+      return self.invL
+
   #######################################################  To/From String
   def from_string( self, mystr ):
     myvec = flatstr2np(  mystr )

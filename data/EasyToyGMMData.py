@@ -44,6 +44,10 @@ def print_data_info( modelName):
   print 'Easy-to-learn toy data for K=3 GMM'
   if modelName.count('Admix') > 0:
     print '  Dir. prior on group mix weights:', alpha
+    print '  First 3 group-specific weights:'
+    print '  ', ' '*8, TrueW_perGroup[0]
+    print '  ', ' '*8, TrueW_perGroup[1]
+    print '  ', ' '*8, TrueW_perGroup[2]
   elif modelName.count('HMM') > 0:
     print '  Trans. matrix:  '
     for k in xrange(K):
@@ -108,6 +112,7 @@ def get_data_by_groups( seed=8675309, nPerGroup=5000, nGroup=5, **kwargs ):
   np.random.seed( seed )
   X = np.empty( (nGroup*nPerGroup, D) )
   GroupIDs = list()
+  global TrueW_perGroup
   TrueW_perGroup = list()
   for gg in xrange( nGroup ):
     w = np.random.mtrand.dirichlet( alpha*np.ones(K)  )
