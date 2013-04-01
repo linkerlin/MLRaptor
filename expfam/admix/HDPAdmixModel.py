@@ -125,7 +125,7 @@ class HDPAdmixModel( object ):
 
   ###################################################################  Global Param Updates (M-step)   
   def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs ):
-    ''' Run optimization to find best global stick-proportions v
+    '''Run optimization to find best global stick-proportions
     '''
     ampF = 1 #no matter what!
     args = ( SS['G'], SS['Elogw'], self.alpha0, self.gamma)
@@ -144,8 +144,10 @@ class HDPAdmixModel( object ):
       respNorm = LP['resp'] / LP['resp'].sum(axis=1)[:,np.newaxis]
     else:
       respNorm = LP['resp'] # Already normalized so rows sum to one
-    return self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP, respNorm ) \
-           + self.E_logpW( LP )   - self.E_logqW(LP)
+    elboZ = self.E_logpZ( GroupIDs, LP ) - self.E_logqZ( GroupIDs, LP, respNorm )
+    elobW = self.E_logpW( LP )   - self.E_logqW(LP)  
+    return  elboZ + elboW
+           
 
   def E_logpZ( self, GroupIDs, LP ):
     ElogpZ = 0
@@ -168,8 +170,7 @@ class HDPAdmixModel( object ):
     ElogqW = 0
     for gg in xrange( len(LP['alpha_perGroup']) ):
       a_gg = LP['alpha_perGroup'][gg]
-      ElogqW +=  gammaln(  a_gg.sum()) - gammaln(  a_gg ).sum() \
-                  + np.inner(  a_gg -1,  LP['Elogw_perGroup'][gg] )
+      ElogqW +=  gammaln(  a_gg.sum()) - gammaln(  a_gg ).sum() + np.inner(  a_gg -1,  LP['Elogw_perGroup'][gg] )
     return ElogqW
 
   def E_logpV( self ):

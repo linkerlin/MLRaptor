@@ -1,8 +1,22 @@
+#! /home/mhughes/mypy/epd64/bin/python
+#$ -S /home/mhughes/mypy/epd64/bin/python
+# ------ set working directory
+#$ -cwd 
+# ------ attach job number
+#$ -j n
+# ------ send to particular queue
+#$ -o ../logs/$JOB_ID.$TASK_ID.out
+#$ -e ../logs/$JOB_ID.$TASK_ID.err
+
 '''  This script will take two arguments:
       (1) file path location of a saved model 
       (2) filepath location of held-out data to process
                using all files in that directory,
 '''
+
+import sys
+sys.path.append('/home/mhughes/git/MLRaptor/')
+
 import numpy as np
 import data.EasyToyGMMData as Toy
 import argparse
@@ -11,15 +25,19 @@ import glob
 import os
 from distutils.dir_util import mkpath  #mk_dir -p functionality
 
-def DataGenerator( datapath ):
+def DataGenerator( datapath, modelpath ):
   for fname in glob.glob( os.path.join( datapath, '*.dat') ):
     print fname
+    dummypath,shortname = os.path.split( fname )
+    shortname = os.path.splitext( shortname)[0]
+    dname = shortname+'.wHat.txt'
+    if os.path.exists( os.path.join( modelpath, 'heldout', dname) ):
+      print '.... skipping'
+      continue
     X = np.loadtxt( fname )
     GIDs = list( )
     GIDs.append( (0, X.shape[0]) )
-    dummypath,shortname = os.path.split( fname )
-    shortname = os.path.splitext( shortname)[0]
-    yield shortname+'.wHat.txt', dict(X=X, GroupIDs=GIDs, nGroup=1)
+    yield dname, dict(X=X, GroupIDs=GIDs, nGroup=1)
 
 def FakeDataGenerator( datapath ):
   for n in xrange( 5 ):
@@ -30,7 +48,7 @@ def main( modelpath, datapath ):
   # Create inference engine from saved model
   expfammodel = expfam.ExpFamModel.BuildFromMatfile( modelpath )
   inferEngine = expfam.learn.VBInferHeldout( expfammodel, nIter=10, saveEvery=-1, printEvery=-1 )
-  for dname, Data in DataGenerator( datapath ):
+  for dname, Data in DataGenerator( datapath, modelpath ):
     LP = inferEngine.infer( Data )
     wHat = LP['alpha_perGroup']
     wHat /= wHat.sum()

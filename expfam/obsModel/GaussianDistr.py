@@ -87,7 +87,7 @@ class GaussianDistr( object ):
     try:
       return self.invL
     except Exception:
-      self.invL = np.linalg.pinv( self.L )
+      self.invL = np.linalg.inv( self.L )
       return self.invL
 
   #################################################### Posterior calc

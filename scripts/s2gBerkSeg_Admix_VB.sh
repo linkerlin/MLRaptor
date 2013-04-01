@@ -11,4 +11,5 @@ echo " "
 exit
 
 ##############################################################################
-Your job-array 2856309.1-10:1 ("LearnExpFam.py") has been submitted
+Your job-array 2856634.1-10:1 ("LearnExpFam.py") has been submitted
+

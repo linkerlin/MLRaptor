@@ -136,7 +136,11 @@ class GaussObsCompSet( object ):
   def update_obs_params_VB_stochastic( self, SS, rho, Ntotal):
     ampF = Ntotal/SS['Ntotal']
     for k in xrange( self.K ):
-      ELam = self.obsPrior.LamD.E_Lam()
+      try:
+        ELam = self.qobsDistr[k].LamD.E_Lam()
+      except Exception:
+        ELam = self.obsPrior.LamD.E_Lam()
+
       postDistr = self.obsPrior.getPosteriorDistr( ampF*SS['N'][k], ampF*SS['x'][k], ampF*SS['xxT'][k], ELam )
       if self.qobsDistr[k] is None:
         self.qobsDistr[k] = postDistr

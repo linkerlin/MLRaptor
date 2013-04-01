@@ -40,8 +40,7 @@ class OnlineVBLearnAlg( LearnAlg ):
     #Finally, save, print and exit 
     try:
       self.save_state(iterid, evBound, doFinal=True) 
-      self.print_state(iterid, evBound, doFinal=True, status=status)
+      self.print_state(iterid, evBound, doFinal=True, status=status, rho=rho)
       return LP
     except UnboundLocalError:
       print 'No iterations performed.  Perhaps provided DataGen empty. Rebuild DataGen and try again.'
-
