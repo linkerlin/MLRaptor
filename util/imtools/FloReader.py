@@ -18,17 +18,14 @@ def readFlowFile( filename ):
 
   FlowX = flowData[:, :, 0]
   FlowY = flowData[:, :, 1]
-  print W,H
-  print FlowX.shape
-  print FlowY.shape
   return FlowX, FlowY
 
 def flowToColor( U, V, maxFlow=None):
   H,W = U.shape
   UNKTHR = 1e9
-  #idsUNK = (np.abs(U) > UNKTHR) | (np.abs(V) > UNKTHR)
-  #U[ idsUNK] = 0
-  #V[ idsUNK] = 0
+  idsUNK = (np.abs(U) > UNKTHR) | (np.abs(V) > UNKTHR)
+  U[ idsUNK] = 0
+  V[ idsUNK] = 0
 
   MAXF = 999
   MINF = -999
@@ -47,8 +44,8 @@ def flowToColor( U, V, maxFlow=None):
   V = V/(maxrad + 1e-13)
 
   Img = computeColor( U,V)
-  #idsUNK = np.tile( idsUNK, (1,1,3) )
-  #Img[idsUNK] = 0
+  idsUNK= np.dstack( [idsUNK,idsUNK,idsUNK] )
+  Img[idsUNK] = 0
   Img[:,:,0] = Img[::-1,:,0]
   Img[:,:,1] = Img[::-1,:,1]
   Img[:,:,2] = Img[::-1,:,2]

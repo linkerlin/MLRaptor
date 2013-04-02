@@ -8,6 +8,7 @@
 '''
 import numpy as np
 import scipy.io
+import scipy.linalg
 import os
 
 from .WishartDistr import WishartDistr
@@ -51,6 +52,8 @@ class GaussObsCompSet( object ):
       self.obsPrior.set_dims( self.D )
   
   def get_prior_dict( self ):
+    if self.obsPrior is None:
+      return dict()
     return self.obsPrior.to_dict()
 
   ################################################################## File IO 
@@ -206,7 +209,10 @@ class GaussObsCompSet( object ):
 
       xmT = np.outer(SS['x'][k],muD.m)
       xmxmT  =  SS['xxT'][k] - xmT - xmT.T + SS['N'][k]*np.outer(muD.m, muD.m)
-      lpX[k] -= 0.5*LamD.E_traceLambda( xmxmT )
+      try:
+        lpX[k] -= 0.5*LamD.E_traceLambda( xmxmT )
+      except scipy.linalg.LinAlgError:
+        lpX[k] -= 0.5*np.trace( np.dot( np.linalg.inv(LamD.invW), xmxmT) )
     return lpX.sum()
     
   def E_logpPhi( self ):

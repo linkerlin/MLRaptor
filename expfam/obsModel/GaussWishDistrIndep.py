@@ -55,7 +55,7 @@ class GaussWishDistrIndep( object ):
   def getPosteriorDistr( self, N, x, xxT, ELam ):
     '''
     '''
-    for rep in xrange( 5 ):
+    for rep in xrange( 2 ):
       muD  = self.muD.getPosteriorDistr( N, x, ELam )
       LamD = self.LamD.getPosteriorDistr( N, x, xxT, muD.m, muD.get_covar() )
       if rep > 0 and np.allclose( ELam, prev ):

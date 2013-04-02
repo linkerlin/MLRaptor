@@ -280,7 +280,11 @@ def main(args):
     doAdmix = (args.modelName.count('Admix') + args.modelName.count('HDP') )> 0
     doHMM = args.modelName.count('HMM') > 0
 
-    jobpath = os.path.join(args.datagenModule[:7], args.modelName, algName, args.jobname)
+    if 'get_short_name' in dir( datagenmod ):
+      datashortname = datagenmod.get_short_name()
+    else:
+      datashortname = args.datagenModule[:7]
+    jobpath = os.path.join( datashortname, args.modelName, algName, args.jobname)
     
     Data, dataSummaryStr = load_data( datagenmod, dataParams, args.doonline, doAdmix, doHMM )
 
@@ -317,18 +321,20 @@ def main(args):
         print '   logfile: %s' % (logpath)
     
 
-      ##########################################################  Build Learning Alg
+      ##########################################################  Run Learning Alg
       if args.doonline:
         learnAlg = ef.learn.OnlineVBLearnAlg( model, **algParams )
+        learnAlg.fit( Data, seed )
       elif args.dobatch:
         learnAlg = ef.learn.VBLearnAlg( model, **algParams )
+        learnAlg.fit( Data, seed )
       
-      ##########################################################  Run Learning Alg
+      '''
       if args.dotest:
         learnAlg.fit( Data, seed, Dtest=Dtest)
       else:
         learnAlg.fit( Data, seed )
-
+      '''
     ##########################################################  Wrap Up
     if args.doprintfinal:
       model.print_global_params()

@@ -28,17 +28,6 @@ class MixModel( object ):
     self.K = K
     self.alpha0 = alpha0
 
-  '''
-  def save_params( self, fname, saveext):
-    if saveext == 'txt':
-      outpath = fname + 'AllocModel.txt'
-      with open( outpath, 'a') as f:
-        f.write( self.to_string() + '\n')
-    elif saveext == 'mat':
-      outpath = fname + 'AllocModel.mat'
-      scipy.io.savemat( outpath, self.to_dict(), oned_as='row')
-  '''
-
   def get_prior_dict( self ):
     return dict( alpha0=self.alpha0 )
   
@@ -142,3 +131,16 @@ class MixModel( object ):
     '''
     return gammaln(self.alpha.sum())-gammaln(self.alpha).sum() \
              + np.inner( (self.alpha-1), self.Elogw )
+
+
+  '''
+  def save_params( self, fname, saveext):
+    if saveext == 'txt':
+      outpath = fname + 'AllocModel.txt'
+      with open( outpath, 'a') as f:
+        f.write( self.to_string() + '\n')
+    elif saveext == 'mat':
+      outpath = fname + 'AllocModel.mat'
+      scipy.io.savemat( outpath, self.to_dict(), oned_as='row')
+  '''
+

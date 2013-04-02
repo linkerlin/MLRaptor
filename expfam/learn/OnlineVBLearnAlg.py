@@ -15,15 +15,19 @@ class OnlineVBLearnAlg( LearnAlg ):
     self.expfamModel = expfamModel
     self.Niter = '' # empty
 
-  def fit( self, DataGenerator, seed, Ntotal=10000, Dtest=None ):
+  def fit( self, DataGenerator, seed, Dtest=None ):
     self.start_time = time.time()
     rho = 1.0
     tLP =None
     for iterid, Dchunk in enumerate(DataGenerator):
       if iterid==0:
-        self.init_global_params( Dchunk, seed )
+        try:
+          self.expfamModel.allocModel.alpha
+        except AttributeError:
+          print 'Initializing!'
+          self.init_global_params( Dchunk, seed )
       else:
-        self.expfamModel.update_global_params( SS, rho, Ntotal=Ntotal )
+        self.expfamModel.update_global_params( SS, rho, Ntotal=Dchunk['nTotal'] )
 
       LP = self.expfamModel.calc_local_params( Dchunk )
       SS = self.expfamModel.get_global_suff_stats( Dchunk, LP )

@@ -71,7 +71,7 @@ def minibatch_generator(  batch_size=1000, Nimg=NimgDEF, nBatch=50, nRep=1, seed
       Xcur = Xcache[:batch_size]
       Xcache = Xcache[batch_size:]
       #print 'remaining cache size:', Xcache.shape[0]
-      yield {'X':Xcur}
+      yield {'X':Xcur, 'nTotal':batch_size*nBatch}
 
 def load_image_as_group_data( fname, startID=0 ):
   X = np.loadtxt( fname )
@@ -117,7 +117,7 @@ def group_minibatch_generator(  batch_size=9401, nBatch=50, nRep=1, seed=8675309
         GroupIDs=list()
         nTotal=0
     if nTotal > 0:
-      yield dict( X=np.vstack(Xlist), GroupIDs=GroupIDs, nGroup=len(GroupIDs) )
+      yield dict( X=np.vstack(Xlist), GroupIDs=GroupIDs, nGroup=len(GroupIDs), nTotal=batch_size*nBatch )
    
 
 def np2flatstr( X, fmt='% 7.2f' ):

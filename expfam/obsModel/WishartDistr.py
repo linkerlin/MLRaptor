@@ -110,15 +110,22 @@ class WishartDistr( object ):
 
   def E_traceLambda( self, S):
     '''Calculate trace( S* E[Lambda] ) in numerically stable way
-          = v * trace( S* W ), without explicitly inverting W
+          = v * trace( S* W ), without explicitly inverting invW to get W
     '''
     try:
       U = scipy.linalg.cholesky( S , lower=True )
     except scipy.linalg.LinAlgError:
       try:
-        U = scipy.linalg.cholesky( S + 1e-13*np.eye( self.D), lower=True )
+        S = 0.5* (S + S.T) # Enforce symmetry!
+        D,V = np.linalg.eig( S )
+        D[ D<=0] = 1e-9
+        V = V.real
+        D = D.real
+        S = np.dot( V, np.dot( np.diag(D), V.T) )
+        U = scipy.linalg.cholesky( S, lower=True )
       except Exception:
-        print S
-        U = scipy.linalg.cholesky( S, lower=True)
+        #print S[:3,:3]
+        print 'Min EigVal:', np.linalg.eigvals(S).min()
+        U = scipy.linalg.cholesky( S, lower=True) #throw the error and quit
     Q = scipy.linalg.solve_triangular( self.cholinvW, U, lower=True)
     return self.v * np.sum(Q**2)
